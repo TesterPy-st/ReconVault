@@ -1,0 +1,23 @@
+# ReconVault Backend Requirements
+# Phase 1: Core dependencies
+
+fastapi==0.109.0
+uvicorn==0.27.0
+pydantic==2.5.3
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# Database connectors (for future phases)
+# psycopg2-binary==2.9.9
+# neo4j==5.14.0
+# redis==5.0.1
+
+# API documentation
+# pyyaml==6.0.1
+
+# Logging
+# loguru==0.7.2
+
+# Testing
+# pytest==7.4.4
+# httpx==0.26.0
