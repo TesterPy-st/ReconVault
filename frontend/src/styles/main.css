@@ -202,10 +202,175 @@ body {
   font-family: 'Share Tech Mono', monospace;
 }
 
+/* Custom animations */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.scanline {
+  animation: scanline 8s linear infinite;
+}
+
+@keyframes flicker {
+  0%, 100% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 0.3;
+  }
+  94% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 0.5;
+  }
+  96% {
+    opacity: 1;
+  }
+}
+
+.flicker {
+  animation: flicker 10s infinite;
+}
+
+/* Neon glow utilities */
+.shadow-neon {
+  box-shadow: 0 0 10px #00ff88, 0 0 20px #00d4ff;
+}
+
+.shadow-neon-glow {
+  box-shadow: 0 0 5px #00ff88, 0 0 15px #00d4ff, 0 0 30px #b100ff;
+}
+
+.drop-shadow-neon {
+  filter: drop-shadow(0 0 5px #00ff88);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .container {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+}
+
+/* Force graph specific styles */
+.force-graph-container {
+  background: #050818 !important;
+}
+
+.force-graph-container canvas {
+  outline: none !important;
+}
+
+/* Selection color */
+::selection {
+  background: #00ff88;
+  color: #0a0e27;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid #00ff88;
+  outline-offset: 2px;
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(26, 31, 58, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #00ff88 0%, #00d4ff 50%, #b100ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animated gradient background */
+.animated-gradient {
+  background: linear-gradient(-45deg, #0a0e27, #1a1f3a, #050818, #0a0e27);
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Number flow animation */
+.animate-number {
+  transition: all 0.3s ease-out;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1a1f3a 25%,
+    #2a2f4a 50%,
+    #1a1f3a 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }
