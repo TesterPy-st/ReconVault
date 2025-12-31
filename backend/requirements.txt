@@ -2,22 +2,41 @@
 # Phase 1: Core dependencies
 
 fastapi==0.109.0
-uvicorn==0.27.0
+uvicorn[standard]==0.27.0
 pydantic==2.5.3
+pydantic-settings==2.1.0
 python-dotenv==1.0.0
 python-multipart==0.0.6
 
-# Database connectors (for future phases)
-# psycopg2-binary==2.9.9
-# neo4j==5.14.0
-# redis==5.0.1
+# Database connectors
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+neo4j==5.14.0
+redis==5.0.1
+
+# WebSocket support
+websockets==12.0
+
+# Additional utilities
+requests==2.31.0
+aiofiles==23.2.1
+httpx==0.26.0
 
 # API documentation
-# pyyaml==6.0.1
+pyyaml==6.0.1
 
-# Logging
-# loguru==0.7.2
+# Logging and monitoring
+loguru==0.7.2
 
 # Testing
-# pytest==7.4.4
-# httpx==0.26.0
+pytest==7.4.4
+pytest-asyncio==0.21.1
+httpx==0.26.0
+
+# Data validation and serialization
+email-validator==2.1.0
+
+# Development tools
+black==23.12.1
+isort==5.13.2
+flake8==6.1.0
