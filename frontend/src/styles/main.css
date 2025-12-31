@@ -1,0 +1,211 @@
+/* ReconVault Main Styles */
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom cyber theme styles */
+
+/* Fonts */
+@font-face {
+  font-family: 'Orbitron';
+  src: url('https://fonts.gstatic.com/s/orbitron/v25/8QIRdiDaj51NvQwM5p7e.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('https://fonts.gstatic.com/s/sharetechmono/v16/J7aHnp1uDWRBEqV98ZjzP2U5V8vW7w.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Base styles */
+body {
+  font-family: 'Share Tech Mono', monospace;
+  background-color: #0a0e27;
+  color: #00ff88;
+}
+
+/* Cyber theme colors */
+.text-cyber-dark {
+  color: #0a0e27;
+}
+
+.text-cyber-darker {
+  color: #050818;
+}
+
+.text-cyber-light {
+  color: #1a1f3a;
+}
+
+.text-cyber-lighter {
+  color: #2a2f4a;
+}
+
+.text-neon-green {
+  color: #00ff88;
+}
+
+.text-neon-blue {
+  color: #00d4ff;
+}
+
+.text-neon-purple {
+  color: #b100ff;
+}
+
+.text-neon-pink {
+  color: #ff00aa;
+}
+
+.text-cyber-gray {
+  color: #888888;
+}
+
+.bg-cyber-dark {
+  background-color: #0a0e27;
+}
+
+.bg-cyber-darker {
+  background-color: #050818;
+}
+
+.bg-cyber-light {
+  background-color: #1a1f3a;
+}
+
+.bg-cyber-lighter {
+  background-color: #2a2f4a;
+}
+
+.bg-neon-green {
+  background-color: #00ff88;
+}
+
+.bg-neon-blue {
+  background-color: #00d4ff;
+}
+
+.bg-neon-purple {
+  background-color: #b100ff;
+}
+
+.bg-neon-pink {
+  background-color: #ff00aa;
+}
+
+.bg-cyber-gray {
+  background-color: #888888;
+}
+
+.border-cyber-border {
+  border-color: #3a3f5a;
+}
+
+/* Button styles */
+.btn-cyber {
+  @apply px-6 py-3 rounded-lg font-bold text-cyber-dark transition-all duration-300;
+}
+
+.btn-cyber-primary {
+  @apply bg-neon-green hover:bg-opacity-80;
+}
+
+.btn-cyber-secondary {
+  @apply bg-neon-blue hover:bg-opacity-80;
+}
+
+.btn-cyber-danger {
+  @apply bg-neon-pink hover:bg-opacity-80;
+}
+
+/* Card styles */
+.card-cyber {
+  @apply bg-cyber-light rounded-lg p-6 border border-cyber-border;
+}
+
+.card-cyber:hover {
+  @apply border-neon-green;
+}
+
+/* Input styles */
+.input-cyber {
+  @apply bg-cyber-darker border border-cyber-border rounded-lg px-4 py-3 text-neon-green;
+  @apply focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050818;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00ff88;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Animation classes */
+@keyframes glow {
+  from {
+    box-shadow: 0 0 10px #00ff88, 0 0 20px #00d4ff;
+  }
+  to {
+    box-shadow: 0 0 20px #00ff88, 0 0 40px #00d4ff, 0 0 60px #b100ff;
+  }
+}
+
+.glow {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Grid background */
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(30, 30, 50, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 30, 50, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Utility classes */
+.font-cyber {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.font-mono {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
