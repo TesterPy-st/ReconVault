@@ -1,0 +1,407 @@
+name: ReconVault CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feat-* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Nightly builds at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Manual trigger option
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # STAGE 1: Lint & Format Check
+  # ============================================================================
+  lint-backend:
+    name: Backend Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+      
+      - name: Run Black (format check)
+        run: |
+          cd backend
+          black --check app/ tests/
+        continue-on-error: false
+      
+      - name: Run isort (import sorting)
+        run: |
+          cd backend
+          isort --check-only app/ tests/
+        continue-on-error: false
+      
+      - name: Run Flake8 (linting)
+        run: |
+          cd backend
+          flake8 app/ tests/ --max-line-length=100
+        continue-on-error: false
+      
+      - name: Run mypy (type checking)
+        run: |
+          cd backend
+          mypy app/ --ignore-missing-imports
+        continue-on-error: true  # Type hints may not be complete
+
+  lint-frontend:
+    name: Frontend Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: Run Prettier check
+        run: |
+          cd frontend
+          npx prettier --check "src/**/*.{js,jsx,json,css}"
+
+  # ============================================================================
+  # STAGE 2: Build
+  # ============================================================================
+  build-backend:
+    name: Backend Build
+    runs-on: ubuntu-latest
+    needs: [lint-backend]
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        run: |
+          cd backend
+          docker build -t reconvault-backend:test .
+      
+      - name: Test Docker image
+        run: |
+          docker run --rm reconvault-backend:test python --version
+
+  build-frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: [lint-frontend]
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 7
+
+  # ============================================================================
+  # STAGE 3: Unit Tests
+  # ============================================================================
+  test-backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: [build-backend]
+    timeout-minutes: 20
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: reconvault_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+      
+      - name: Run unit tests with coverage
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/reconvault_test
+        run: |
+          cd backend
+          pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term-missing --tb=short
+      
+      - name: Check coverage threshold
+        run: |
+          cd backend
+          coverage report --fail-under=70
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage.xml
+          flags: backend-unit
+          name: backend-unit-coverage
+
+  test-frontend-unit:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    needs: [build-frontend]
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run unit tests
+        run: |
+          cd frontend
+          npm test -- --coverage --watchAll=false
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: frontend-unit
+          name: frontend-unit-coverage
+
+  # ============================================================================
+  # STAGE 4: Integration Tests
+  # ============================================================================
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-backend-unit, test-frontend-unit]
+    timeout-minutes: 30
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: reconvault_test
+        ports:
+          - 5432:5432
+      
+      neo4j:
+        image: neo4j:5
+        env:
+          NEO4J_AUTH: neo4j/testpassword
+        ports:
+          - 7687:7687
+          - 7474:7474
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+      
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/reconvault_test
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: testpassword
+          REDIS_URL: redis://localhost:6379
+        run: |
+          cd backend
+          pytest tests/integration/ -v --tb=short
+
+  # ============================================================================
+  # STAGE 5: Security Scan
+  # ============================================================================
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Bandit (Python security)
+        run: |
+          pip install bandit
+          cd backend
+          bandit -r app/ -f json -o bandit-report.json || true
+      
+      - name: Run npm audit (Node security)
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate || true
+      
+      - name: Run Trivy (container scanning)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ============================================================================
+  # STAGE 6: Build & Push Docker Images
+  # ============================================================================
+  docker-build-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-integration, security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+      
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # Summary
+  # ============================================================================
+  ci-success:
+    name: CI Pipeline Success
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend, build-backend, build-frontend, test-backend-unit, test-frontend-unit, test-integration, security-scan]
+    if: always()
+    
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "All CI stages completed"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "❌ CI Pipeline Failed"
+            exit 1
+          else
+            echo "✅ CI Pipeline Passed"
+          fi

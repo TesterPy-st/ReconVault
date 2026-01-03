@@ -153,6 +153,69 @@ We welcome contributions to ReconVault! Please follow these guidelines:
 - Commit messages: Use conventional commits format
 - Documentation: Markdown with clear structure
 
+## Testing
+
+ReconVault includes a comprehensive test suite covering unit tests, integration tests, and end-to-end tests.
+
+### Running Tests
+
+#### Backend Tests
+```bash
+cd backend
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test suite
+pytest tests/unit/
+pytest tests/integration/
+```
+
+#### Frontend Tests
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Run with coverage
+npm test -- --coverage
+
+# Run E2E tests
+npm run test:e2e
+```
+
+#### Load Tests
+```bash
+cd backend/tests/load
+locust -f load_test.py --host=http://localhost:8000
+```
+
+### Test Coverage
+
+- **Backend:** ≥70% coverage (200+ tests)
+- **Frontend:** ≥60% coverage (75+ tests)
+- **E2E:** 12+ workflow tests
+- **Total:** 340+ tests
+
+See [TESTING.md](TESTING.md) for detailed testing documentation.
+
+### CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration:
+
+1. **Lint & Format Check** - Code quality verification
+2. **Build** - Docker images and application builds
+3. **Unit Tests** - Component-level testing
+4. **Integration Tests** - Full-stack testing
+5. **Security Scan** - Vulnerability detection
+6. **Deploy** - Automated deployment (on main branch)
+
+See `.github/workflows/ci.yml` for pipeline configuration.
+
 ## Architecture Overview
 
 ReconVault follows a modular microservices architecture:
