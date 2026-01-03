@@ -13,13 +13,19 @@ from celery import Task
 from loguru import logger
 
 from app.automation.celery_config import celery_app
-from app.collectors import (CollectorConfig, DarkWebCollector, DataType,
-                            DomainCollector, EmailCollector, GeoCollector,
-                            IPCollector, MediaCollector, SocialCollector,
-                            WebCollector)
+from app.collectors import (
+    CollectorConfig,
+    DarkWebCollector,
+    DataType,
+    DomainCollector,
+    EmailCollector,
+    GeoCollector,
+    IPCollector,
+    MediaCollector,
+    SocialCollector,
+    WebCollector,
+)
 from app.services.collection_pipeline_service import CollectionPipelineService
-from app.services.normalization_service import NormalizationService
-from app.services.risk_analysis_service import RiskAnalysisService
 
 # Configure Celery logger
 celery_logger = logging.getLogger("celery")
@@ -436,9 +442,7 @@ def full_reconnaissance(
 
             result = loop.run_until_complete(run_pipeline())
 
-            logger.info(
-                f"Full reconnaissance completed for {target}: {result.get('status')}"
-            )
+            logger.info(f"Full reconnaissance completed for {target}: {result.get('status')}")
 
             return result
 
@@ -500,9 +504,7 @@ def health_check(self: Task) -> Dict[str, Any]:
 
 
 # Helper function to queue collection tasks
-def queue_collection(
-    target: str, collection_type: str, task_id: str, **kwargs
-) -> Optional[str]:
+def queue_collection(target: str, collection_type: str, task_id: str, **kwargs) -> Optional[str]:
     """
     Queue a collection task.
 
@@ -539,9 +541,7 @@ def queue_collection(
         return task_func.delay(target, task_id).id
 
 
-def queue_multiple_collections(
-    target: str, collection_types: List[str], task_id: str, **kwargs
-) -> List[str]:
+def queue_multiple_collections(target: str, collection_types: List[str], task_id: str, **kwargs) -> List[str]:
     """
     Queue multiple collection tasks.
 
@@ -656,7 +656,7 @@ def periodic_risk_update(self: Task) -> Dict[str, Any]:
 
         try:
             # Get all active entities
-            entities = db.query(Entity).filter(Entity.is_active == True).all()
+            entities = db.query(Entity).filter(Entity.is_active.is_(True)).all()
 
             logger.info(f"Updating risks for {len(entities)} entities")
 
@@ -696,4 +696,311 @@ def periodic_risk_update(self: Task) -> Dict[str, Any]:
 
     except Exception as e:
         logger.exception(f"Periodic risk update failed: {e}")
-        return {"success": False, "errors": [str(e)], "timestamp": datetime.utcnow().isoformat()}
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.detect_anomalies_async")
+def detect_anomalies_async(self: Task, entity_ids: List[int]) -> Dict[str, Any]:
+    """
+    Asynchronous anomaly detection for entities.
+
+    Args:
+        entity_ids: List of entity IDs to analyze
+
+    Returns:
+        Detection results
+    """
+    logger.info(f"Async anomaly detection started for {len(entity_ids)} entities")
+
+    try:
+        import json
+        import uuid
+
+        from app.ai_engine.anomaly_classifier import get_anomaly_classifier
+        from app.ai_engine.inference import get_inference_engine
+        from app.database import get_db_session
+        from app.models.entity import Entity
+        from app.models.intelligence import Anomaly
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Get inference engine
+            inference_engine = get_inference_engine(db)
+            classifier = get_anomaly_classifier()
+
+            # Process entities
+            anomalies_detected = 0
+            errors = []
+
+            for entity_id in entity_ids:
+                try:
+                    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+
+                    if not entity:
+                        errors.append(f"Entity {entity_id} not found")
+                        continue
+
+                    # Detect anomaly
+                    result = inference_engine.detect_entity_anomaly(entity, use_cache=True)
+
+                    if result["is_anomalous"]:
+                        # Classify anomaly
+                        classification = classifier.classify_entity_anomaly(
+                            entity,
+                            result["anomaly_score"],
+                            result.get("explanation", {}).get("all_features"),
+                        )
+
+                        # Create anomaly record
+                        anomaly = Anomaly(
+                            id=str(uuid.uuid4()),
+                            entity_id=entity.id,
+                            anomaly_type=classification["primary_type"],
+                            anomaly_score=result["anomaly_score"],
+                            confidence=result["confidence"],
+                            severity=classification["severity"],
+                            explanation=json.dumps(result.get("explanation", {})),
+                            detection_method=result["detection_method"],
+                            indicators=",".join(classification["indicators"]),
+                            description=classification["description"],
+                            recommendations=json.dumps(classification["recommendations"]),
+                            reviewed=False,
+                            is_active=True,
+                        )
+
+                        db.add(anomaly)
+                        anomalies_detected += 1
+
+                        # Broadcast anomaly detection via WebSocket
+                        # TODO: Implement WebSocket broadcast
+
+                except Exception as e:
+                    logger.error(f"Error processing entity {entity_id}: {e}")
+                    errors.append(f"Entity {entity_id}: {str(e)}")
+
+            # Commit changes
+            db.commit()
+
+            logger.info(f"Async anomaly detection completed: {anomalies_detected} anomalies detected")
+
+            return {
+                "success": True,
+                "entities_processed": len(entity_ids),
+                "anomalies_detected": anomalies_detected,
+                "errors": errors,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Async anomaly detection failed: {e}")
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.batch_detect_anomalies")
+def batch_detect_anomalies(self: Task, batch_size: int = 100) -> Dict[str, Any]:
+    """
+    Batch anomaly detection task - processes entities in batches.
+
+    Args:
+        batch_size: Number of entities to process per batch
+
+    Returns:
+        Batch processing results
+    """
+    logger.info(f"Batch anomaly detection started (batch_size: {batch_size})")
+
+    try:
+        from app.database import get_db_session
+        from app.models.entity import Entity
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Get entities without recent anomaly checks
+            # For now, get all active entities
+            entities = db.query(Entity).filter(Entity.is_active.is_(True)).limit(batch_size).all()
+
+            if not entities:
+                logger.info("No entities to process for anomaly detection")
+                return {
+                    "success": True,
+                    "entities_processed": 0,
+                    "anomalies_detected": 0,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+
+            entity_ids = [e.id for e in entities]
+
+            # Delegate to async detection task
+            result = detect_anomalies_async.delay(entity_ids)
+
+            return {
+                "success": True,
+                "task_id": result.id,
+                "entities_queued": len(entity_ids),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Batch anomaly detection failed: {e}")
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.retrain_anomaly_models")
+def retrain_anomaly_models(self: Task, model_version: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Periodic model retraining task (runs weekly).
+
+    Args:
+        model_version: Version string for models (default: auto-generate)
+
+    Returns:
+        Retraining results
+    """
+    logger.info("Model retraining task started")
+
+    try:
+        from datetime import datetime
+
+        from app.ai_engine.training import ModelTrainer, TrainingConfig
+        from app.database import get_db_session
+
+        # Generate version if not provided
+        if not model_version:
+            model_version = f"v{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Create training config
+            config = TrainingConfig(model_version=model_version)
+
+            # Initialize trainer
+            trainer = ModelTrainer(db, config)
+
+            # Train all models
+            results = trainer.train_all_models()
+
+            logger.info(f"Model retraining completed successfully: {results}")
+
+            return {
+                "success": True,
+                "model_version": model_version,
+                "training_results": results,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Model retraining failed: {e}")
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.generate_anomaly_report")
+def generate_anomaly_report(self: Task) -> Dict[str, Any]:
+    """
+    Generate daily anomaly summary report.
+
+    Returns:
+        Report summary
+    """
+    logger.info("Generating daily anomaly report")
+
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        from app.database import get_db_session
+        from app.models.intelligence import Anomaly
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Calculate date range (last 24 hours)
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(days=1)
+
+            # Get anomalies from last 24 hours
+            anomalies = (
+                db.query(Anomaly)
+                .filter(
+                    Anomaly.created_at >= start_date,
+                    Anomaly.created_at <= end_date,
+                    Anomaly.is_active.is_(True),
+                )
+                .all()
+            )
+
+            # Calculate statistics
+            total = len(anomalies)
+            unreviewed = sum(1 for a in anomalies if not a.reviewed)
+
+            by_severity = {}
+            by_type = {}
+
+            for anomaly in anomalies:
+                # Count by severity
+                by_severity[anomaly.severity] = by_severity.get(anomaly.severity, 0) + 1
+                # Count by type
+                by_type[anomaly.anomaly_type] = by_type.get(anomaly.anomaly_type, 0) + 1
+
+            report = {
+                "report_date": end_date.isoformat(),
+                "period": "24_hours",
+                "total_anomalies": total,
+                "unreviewed_count": unreviewed,
+                "by_severity": by_severity,
+                "by_type": by_type,
+                "critical_anomalies": [a.to_dict() for a in anomalies if a.severity == "critical" and not a.reviewed][
+                    :10
+                ],  # Top 10 critical unreviewed
+            }
+
+            logger.info(f"Daily anomaly report generated: {total} anomalies")
+
+            # TODO: Send report via email or store in database
+
+            return {
+                "success": True,
+                "report": report,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Anomaly report generation failed: {e}")
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
