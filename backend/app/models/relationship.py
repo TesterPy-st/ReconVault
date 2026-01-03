@@ -5,11 +5,13 @@ This module defines the Relationship SQLAlchemy model for storing
 relationships between entities in the intelligence graph.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, JSON, Index, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
+import uuid
 from typing import Optional
 
 
@@ -61,14 +63,14 @@ class Relationship(Base):
     Relationship model representing connections between entities.
     
     Attributes:
-        id (int): Primary key
-        source_entity_id (int): Foreign key to source entity
-        target_entity_id (int): Foreign key to target entity
+        id (UUID): Primary key
+        source_entity_id (UUID): Foreign key to source entity
+        target_entity_id (UUID): Foreign key to target entity
         type (RelationshipType): Type of relationship
         confidence (float): Confidence in relationship accuracy (0.0 to 1.0)
         weight (float): Relationship weight/strength (0.0 to 1.0)
         description (str): Optional relationship description
-        metadata (str): JSON string for additional relationship information
+        metadata (dict): JSON for additional relationship information
         first_observed (datetime): When relationship was first observed
         last_observed (datetime): When relationship was last observed
         verified (bool): Whether relationship has been verified
@@ -78,13 +80,16 @@ class Relationship(Base):
     """
     
     __tablename__ = "relationships"
+    __table_args__ = (
+        UniqueConstraint('source_entity_id', 'target_entity_id', 'type', name='uq_relationship_entities_type'),
+    )
     
     # Primary key
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
     # Entity relationship (bidirectional)
-    source_entity_id = Column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
-    target_entity_id = Column(Integer, ForeignKey("entities.id"), nullable=False, index=True)
+    source_entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # Relationship type and properties
     type = Column(String(100), nullable=False, index=True)
@@ -93,7 +98,7 @@ class Relationship(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta = Column(JSON, nullable=True)  # JSON for flexible metadata
     
     # Timestamps
     first_observed = Column(DateTime(timezone=True), nullable=True)
@@ -190,7 +195,7 @@ class Relationship(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "metadata": self.meta,
             "first_observed": self.first_observed.isoformat() if self.first_observed else None,
             "last_observed": self.last_observed.isoformat() if self.last_observed else None,
             "verified": self.verified,
@@ -216,12 +221,6 @@ class Relationship(Base):
         }
 
 
-# Composite index for relationship queries
-Relationship.__table__.append_column(
-    Column("idx_relationship_composite", String(200), index=True)
-)
-
-# Index for common relationship queries
-Relationship.__table__.append_column(
-    Column("idx_relationship_type_confidence", String(150), index=True)
-)
+# Create compound indexes for performance
+Index('idx_relationship_type_confidence', Relationship.type, Relationship.confidence)
+Index('idx_relationship_source_target', Relationship.source_entity_id, Relationship.target_entity_id)

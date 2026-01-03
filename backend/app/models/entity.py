@@ -5,11 +5,13 @@ This module defines the Entity SQLAlchemy model for storing
 entity information discovered during intelligence gathering.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, JSON, Index
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
+import uuid
 from typing import Optional, Dict, Any
 
 
@@ -60,7 +62,7 @@ class Entity(Base):
     __tablename__ = "entities"
     
     # Primary key
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
     # Entity identification
     type = Column(String(50), nullable=False, index=True)
@@ -80,10 +82,11 @@ class Entity(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta = Column(JSON, nullable=True)  # JSON for flexible metadata
     tags = Column(String(500), nullable=True)  # Comma-separated tags
     
     # Timestamps
+    discovered_at = Column(DateTime(timezone=True), nullable=True, server_default=func.now())
     first_seen = Column(DateTime(timezone=True), nullable=True)
     last_seen = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
@@ -168,7 +171,7 @@ class Entity(Base):
             "source": self.source,
             "is_verified": self.is_verified,
             "description": self.description,
-            "metadata": self.metadata,
+            "metadata": self.meta,
             "tags": self.tags,
             "first_seen": self.first_seen.isoformat() if self.first_seen else None,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,
@@ -214,15 +217,6 @@ class Entity(Base):
         return [tag.strip() for tag in self.tags.split(",")]
 
 
-# Indexes for performance optimization
-Entity.__table__.append_column(
-    Column("idx_entity_type_value", String(100), index=True)
-)
-
-Entity.__table__.append_column(
-    Column("idx_entity_source", String(100), index=True)
-)
-
-Entity.__table__.append_column(
-    Column("idx_entity_risk_score", String(100), index=True)
-)
+# Create compound indexes for performance
+Index('idx_entity_type_value', Entity.type, Entity.value)
+Index('idx_entity_source_type', Entity.source, Entity.type)

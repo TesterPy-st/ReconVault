@@ -8,7 +8,12 @@ API requests and responses for Neo4j intelligence graph.
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from app.intelligence_graph.graph_models import NodeType, RelationshipType
+from uuid import UUID
+try:
+    from app.intelligence_graph.graph_models import NodeType, RelationshipType
+except ImportError:
+    NodeType = None
+    RelationshipType = None
 
 
 class NodeData(BaseModel):
@@ -326,6 +331,27 @@ class GraphRecommendationsResponse(BaseModel):
     generated_at: datetime = Field(..., description="When recommendations were generated")
 
 
+class GraphSnapshot(BaseModel):
+    """Schema for graph snapshot"""
+    
+    timestamp: datetime = Field(..., description="Snapshot timestamp")
+    node_count: int = Field(..., description="Number of nodes in graph")
+    edge_count: int = Field(..., description="Number of edges in graph")
+    risk_score: Optional[float] = Field(None, description="Overall graph risk score")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+
+
+class GraphQuery(BaseModel):
+    """Schema for graph query with filters"""
+    
+    entity_types: Optional[List[str]] = Field(None, description="Filter by entity types")
+    relationship_types: Optional[List[str]] = Field(None, description="Filter by relationship types")
+    date_from: Optional[datetime] = Field(None, description="Filter entities from date")
+    date_to: Optional[datetime] = Field(None, description="Filter entities to date")
+    min_confidence: Optional[float] = Field(0.0, ge=0.0, le=1.0, description="Minimum confidence score")
+    limit: int = Field(1000, ge=1, le=10000, description="Maximum results to return")
+
+
 # Export all schemas
 __all__ = [
     "NodeData",
@@ -353,5 +379,7 @@ __all__ = [
     "GraphAnalysisResponse",
     "GraphHealthResponse",
     "GraphRecommendation",
-    "GraphRecommendationsResponse"
+    "GraphRecommendationsResponse",
+    "GraphSnapshot",
+    "GraphQuery",
 ]

@@ -106,7 +106,7 @@ class Intelligence(Base):
     
     # Categorization
     tags = Column(String(1000), nullable=True)  # Comma-separated tags
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta = Column(Text, nullable=True)  # JSON string for flexible metadata
     ioc_indicators = Column(Text, nullable=True)  # JSON string for IoC data
     
     # Recommendations and notes

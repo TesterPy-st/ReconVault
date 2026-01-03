@@ -12,6 +12,9 @@ from .relationship import Relationship, RelationshipType
 from .intelligence import Intelligence, IntelligenceType, IntelligencePriority, IntelligenceStatus
 from .user import User, UserRole, UserStatus
 from .audit import AuditLog, AuditAction, AuditSeverity, AuditStatus
+from .collection_task import CollectionTask
+from .collection_result import CollectionResult
+from .risk_assessment import RiskAssessment
 
 # Import base database components
 from app.database import Base, metadata
@@ -53,6 +56,9 @@ __all__ = [
     "Intelligence",
     "User",
     "AuditLog",
+    "CollectionTask",
+    "CollectionResult",
+    "RiskAssessment",
     
     # Enums
     "TargetType",

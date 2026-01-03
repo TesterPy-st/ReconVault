@@ -8,24 +8,45 @@ API requests and responses.
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from app.models import EntityType
+from uuid import UUID
+from enum import Enum
+
+
+class EntityType(str, Enum):
+    """Enumeration of entity types"""
+    USERNAME = "username"
+    EMAIL = "email"
+    DOMAIN = "domain"
+    IP_ADDRESS = "ip_address"
+    ORG = "org"
+    PHONE = "phone"
+    HASH = "hash"
+    URL = "url"
+    SOCIAL_PROFILE = "social_profile"
+    # Keep existing types for backward compatibility
+    PERSON = "person"
+    COMPANY = "company"
+    WEBSITE = "website"
+    SERVICE = "service"
+    LOCATION = "location"
+    DEVICE = "device"
+    NETWORK = "network"
+    VULNERABILITY = "vulnerability"
+    THREAT_ACTOR = "threat_actor"
+    MALWARE = "malware"
+    INDICATOR = "indicator"
 
 
 class EntityBase(BaseModel):
     """Base entity schema with common fields"""
     
+    id: Optional[UUID] = Field(None, description="Entity ID")
     type: EntityType = Field(..., description="Entity type")
-    name: Optional[str] = Field(None, max_length=200, description="Entity name")
     value: str = Field(..., min_length=1, max_length=500, description="Entity value")
-    risk_score: float = Field(0.0, ge=0.0, le=1.0, description="Risk assessment score")
-    confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confidence score")
     source: str = Field(..., max_length=100, description="Discovery source")
-    target_id: Optional[int] = Field(None, description="Associated target ID")
-    description: Optional[str] = Field(None, max_length=1000, description="Entity description")
+    confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confidence score")
+    discovered_at: Optional[datetime] = Field(None, description="Discovery timestamp")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
-    tags: Optional[List[str]] = Field(None, description="Entity tags")
-    first_seen: Optional[datetime] = Field(None, description="First seen timestamp")
-    last_seen: Optional[datetime] = Field(None, description="Last seen timestamp")
     
     @validator("value")
     def validate_value(cls, v):
@@ -42,10 +63,28 @@ class EntityBase(BaseModel):
         return v.strip()
 
 
-class EntityCreate(EntityBase):
+class EntityCreate(BaseModel):
     """Schema for creating a new entity"""
     
-    pass
+    type: EntityType = Field(..., description="Entity type")
+    value: str = Field(..., min_length=1, max_length=500, description="Entity value")
+    source: str = Field(..., max_length=100, description="Discovery source")
+    confidence: Optional[float] = Field(1.0, ge=0.0, le=1.0, description="Confidence score")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+    
+    @validator("value")
+    def validate_value(cls, v):
+        """Validate entity value"""
+        if not v or not v.strip():
+            raise ValueError("Entity value cannot be empty")
+        return v.strip()
+    
+    @validator("source")
+    def validate_source(cls, v):
+        """Validate source field"""
+        if not v or not v.strip():
+            raise ValueError("Source cannot be empty")
+        return v.strip()
 
 
 class EntityUpdate(BaseModel):
@@ -88,43 +127,24 @@ class EntityUpdate(BaseModel):
 class EntityResponse(EntityBase):
     """Schema for entity API responses"""
     
-    id: int = Field(..., description="Entity database ID")
+    id: UUID = Field(..., description="Entity database ID")
+    type: EntityType = Field(..., description="Entity type")
+    value: str = Field(..., description="Entity value")
+    source: str = Field(..., description="Discovery source")
+    confidence: float = Field(..., description="Confidence score")
+    discovered_at: datetime = Field(..., description="Discovery timestamp")
     created_at: datetime = Field(..., description="Creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
-    is_verified: bool = Field(..., description="Whether entity is verified")
-    is_active: bool = Field(..., description="Whether entity is active")
-    
-    # Computed fields
-    risk_level: str = Field(..., description="Human-readable risk level")
-    relationship_count: int = Field(..., description="Number of relationships")
+    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
     
     class Config:
         orm_mode = True
+
+
+class EntityWithRelations(EntityResponse):
+    """Schema for entity with relationship count"""
     
-    @classmethod
-    def from_orm(cls, entity) -> "EntityResponse":
-        """Create response from SQLAlchemy model"""
-        return cls(
-            id=entity.id,
-            type=entity.type,
-            name=entity.name,
-            value=entity.value,
-            risk_score=entity.risk_score,
-            confidence=entity.confidence,
-            source=entity.source,
-            target_id=entity.target_id,
-            description=entity.description,
-            metadata=entity.metadata,
-            tags=entity.get_tags() if entity.tags else None,
-            first_seen=entity.first_seen,
-            last_seen=entity.last_seen,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at,
-            is_verified=entity.is_verified,
-            is_active=entity.is_active,
-            risk_level=entity.risk_level,
-            relationship_count=entity.relationship_count
-        )
+    relationship_count: int = Field(0, description="Number of relationships")
 
 
 class EntityListResponse(BaseModel):
@@ -289,10 +309,12 @@ class EntityTagResponse(BaseModel):
 
 # Export all schemas
 __all__ = [
+    "EntityType",
     "EntityBase",
     "EntityCreate",
     "EntityUpdate",
     "EntityResponse",
+    "EntityWithRelations",
     "EntityListResponse",
     "EntityStats",
     "EntitySearchRequest",

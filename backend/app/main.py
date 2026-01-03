@@ -161,6 +161,119 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         }
     )
 
+# Custom exception handlers
+from app.exceptions import (
+    EntityNotFoundError,
+    RelationshipNotFoundError,
+    DuplicateEntityError,
+    InvalidRelationshipError,
+    ValidationError as ReconVaultValidationError,
+    DatabaseError,
+    Neo4jError
+)
+
+
+@app.exception_handler(EntityNotFoundError)
+async def entity_not_found_handler(request: Request, exc: EntityNotFoundError):
+    """Handler for EntityNotFoundError"""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 404,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(RelationshipNotFoundError)
+async def relationship_not_found_handler(request: Request, exc: RelationshipNotFoundError):
+    """Handler for RelationshipNotFoundError"""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 404,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(DuplicateEntityError)
+async def duplicate_entity_handler(request: Request, exc: DuplicateEntityError):
+    """Handler for DuplicateEntityError"""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 409,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(InvalidRelationshipError)
+async def invalid_relationship_handler(request: Request, exc: InvalidRelationshipError):
+    """Handler for InvalidRelationshipError"""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 400,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(ReconVaultValidationError)
+async def validation_error_handler(request: Request, exc: ReconVaultValidationError):
+    """Handler for ValidationError"""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": True,
+            "message": exc.message,
+            "field": exc.field,
+            "status_code": 400,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(DatabaseError)
+async def database_error_handler(request: Request, exc: DatabaseError):
+    """Handler for DatabaseError"""
+    logger.error(f"Database error: {exc.message}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "message": "Database operation failed",
+            "status_code": 500,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
+@app.exception_handler(Neo4jError)
+async def neo4j_error_handler(request: Request, exc: Neo4jError):
+    """Handler for Neo4jError"""
+    logger.error(f"Neo4j error: {exc.message}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "message": "Graph database operation failed",
+            "status_code": 500,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
 # Generic exception handler
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):

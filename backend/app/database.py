@@ -73,7 +73,10 @@ def init_db() -> None:
         logger.info("Initializing database tables...")
         
         # Import all models to ensure they are registered with Base
-        from app.models import target, entity, relationship, intelligence, user, audit
+        from app.models import (
+            target, entity, relationship, intelligence, user, audit,
+            collection_task, collection_result, risk_assessment
+        )
         
         # Create all tables
         Base.metadata.create_all(bind=engine)

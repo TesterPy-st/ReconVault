@@ -69,7 +69,7 @@ class Target(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta = Column(Text, nullable=True)  # JSON string for flexible metadata
     
     # Timestamps
     created_at = Column(
