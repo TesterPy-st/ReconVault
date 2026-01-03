@@ -1,28 +1,41 @@
 """
-ReconVault Collectors Module
+ReconVault Collectors Module - Phase 1: Complete OSINT Intelligence Pipeline
 
-This module will contain OSINT collectors for various data sources.
-Currently a placeholder for Phase 1 infrastructure setup.
+This module contains comprehensive OSINT collectors for various data sources
+including web scraping, social media, DNS/WHOIS, dark web, geolocation,
+and media analysis capabilities.
 
-Future collectors will include:
-- Web collectors
-- Social media collectors
-- DNS/WHOIS collectors
-- Dark web collectors
-- Threat intelligence feeds
+Implemented Collectors:
+- BaseCollector: Abstract base class with rate limiting and ethics compliance
+- WebCollector: Web scraping with Scrapy/Selenium integration
+- SocialCollector: Social media intelligence (Twitter, GitHub, etc.)
+- DomainCollector: WHOIS, DNS enumeration, and domain reputation
+- IPCollector: IP geolocation, port scanning, and threat intel
+- EmailCollector: Email verification, breach checking, and OSINT
+- MediaCollector: Image/audio analysis with ML-based extraction
+- DarkWebCollector: Tor-based dark web intelligence gathering
+- GeoCollector: Geospatial intelligence and location analysis
 """
 
-class BaseCollector:
-    """Base class for all OSINT collectors"""
-    
-    def __init__(self, name: str):
-        self.name = name
-        self.enabled = False
-    
-    def collect(self):
-        """Collect data from source"""
-        raise NotImplementedError("collect method not implemented")
-    
-    def validate(self):
-        """Validate collected data"""
-        raise NotImplementedError("validate method not implemented")
+from .base_collector import BaseCollector, CollectorConfig
+from .web_collector import WebCollector
+from .social_collector import SocialCollector
+from .domain_collector import DomainCollector
+from .ip_collector import IPCollector
+from .email_collector import EmailCollector
+from .media_collector import MediaCollector
+from .darkweb_collector import DarkWebCollector
+from .geo_collector import GeoCollector
+
+__all__ = [
+    'BaseCollector',
+    'CollectorConfig', 
+    'WebCollector',
+    'SocialCollector',
+    'DomainCollector',
+    'IPCollector',
+    'EmailCollector',
+    'MediaCollector',
+    'DarkWebCollector',
+    'GeoCollector'
+]
