@@ -110,6 +110,43 @@ class WebSocketService {
       
       // Handle different message types
       switch (data.type) {
+        case 'graph:node:added':
+          this.emit('graph:node:added', data.data);
+          break;
+        case 'graph:node:updated':
+          this.emit('graph:node:updated', data.data);
+          break;
+        case 'graph:edge:added':
+          this.emit('graph:edge:added', data.data);
+          break;
+        case 'graph:batch:update':
+          this.emit('graph:batch:update', data.data);
+          break;
+        case 'collection:started':
+          this.emit('collection:started', data.data);
+          break;
+        case 'collection:progress':
+          this.emit('collection:progress', data.data);
+          break;
+        case 'collection:completed':
+          this.emit('collection:completed', data.data);
+          break;
+        case 'collection:error':
+          this.emit('collection:error', data.data);
+          break;
+        case 'metrics:graph:update':
+          this.emit('metrics:graph:update', data.data);
+          break;
+        case 'metrics:risk:update':
+          this.emit('metrics:risk:update', data.data);
+          break;
+        case 'metrics:anomaly:detected':
+          this.emit('metrics:anomaly:detected', data.data);
+          break;
+        case 'notification:alert':
+          this.emit('notification:alert', data.data);
+          break;
+        // Legacy message types for backward compatibility
         case 'entity_created':
           this.emit('entity_created', data.payload);
           break;
@@ -453,6 +490,56 @@ class WebSocketService {
 
   onSystemAlert(callback) {
     return this.addEventListener('system_alert', callback);
+  }
+
+  // New WebSocket event listeners for real-time updates
+  
+  onGraphNodeAdded(callback) {
+    return this.addEventListener('graph:node:added', callback);
+  }
+
+  onGraphNodeUpdated(callback) {
+    return this.addEventListener('graph:node:updated', callback);
+  }
+
+  onGraphEdgeAdded(callback) {
+    return this.addEventListener('graph:edge:added', callback);
+  }
+
+  onGraphBatchUpdate(callback) {
+    return this.addEventListener('graph:batch:update', callback);
+  }
+
+  onCollectionStarted(callback) {
+    return this.addEventListener('collection:started', callback);
+  }
+
+  onCollectionProgress(callback) {
+    return this.addEventListener('collection:progress', callback);
+  }
+
+  onCollectionCompleted(callback) {
+    return this.addEventListener('collection:completed', callback);
+  }
+
+  onCollectionError(callback) {
+    return this.addEventListener('collection:error', callback);
+  }
+
+  onMetricsGraphUpdate(callback) {
+    return this.addEventListener('metrics:graph:update', callback);
+  }
+
+  onMetricsRiskUpdate(callback) {
+    return this.addEventListener('metrics:risk:update', callback);
+  }
+
+  onMetricsAnomalyDetected(callback) {
+    return this.addEventListener('metrics:anomaly:detected', callback);
+  }
+
+  onNotificationAlert(callback) {
+    return this.addEventListener('notification:alert', callback);
   }
 
   // Cleanup all listeners

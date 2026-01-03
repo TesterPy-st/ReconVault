@@ -13,6 +13,12 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from app.automation.celery_tasks import celery_app
+from app.api.websockets import (
+    broadcast_collection_started,
+    broadcast_collection_progress,
+    broadcast_collection_completed,
+    broadcast_collection_error
+)
 from app.collectors import (CollectorConfig, CollectorFactory,
                             DarkWebCollector, DataType, DomainCollector,
                             EmailCollector, GeoCollector, IPCollector,
@@ -110,6 +116,16 @@ class CollectionPipelineService:
 
         self.active_tasks[task_id] = task
 
+        # Broadcast collection started
+        try:
+            await broadcast_collection_started(
+                collection_id=task_id,
+                target=target,
+                collector_type="multi" if collection_types else "auto"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to broadcast collection started: {e}")
+
         # Check ethics compliance
         ethical_verdict = await self.compliance_checker.get_ethical_verdict(
             target, "collection"
@@ -120,6 +136,17 @@ class CollectionPipelineService:
                 f"Ethics check failed: {ethical_verdict.get('reason', '')}"
             )
             task["end_time"] = datetime.utcnow().isoformat()
+            
+            # Broadcast collection error
+            try:
+                await broadcast_collection_error(
+                    collection_id=task_id,
+                    error_message=task["errors"][-1],
+                    error_type="ethics_check_failed"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to broadcast collection error: {e}")
+            
             return task
 
         try:
@@ -132,6 +159,17 @@ class CollectionPipelineService:
                 task["status"] = TaskStatus.FAILED.value
                 task["errors"].append("No collectors found for target type")
                 task["end_time"] = datetime.utcnow().isoformat()
+                
+                # Broadcast collection error
+                try:
+                    await broadcast_collection_error(
+                        collection_id=task_id,
+                        error_message="No collectors found for target type",
+                        error_type="routing_failed"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to broadcast collection error: {e}")
+                
                 return task
 
             task["status"] = TaskStatus.RUNNING.value
@@ -185,12 +223,37 @@ class CollectionPipelineService:
             )
 
             logger.info(f"Task {task_id}: Completed successfully")
+            
+            # Broadcast collection completed
+            try:
+                start_time = datetime.fromisoformat(task["start_time"])
+                end_time = datetime.fromisoformat(task["end_time"])
+                duration = (end_time - start_time).total_seconds()
+                
+                await broadcast_collection_completed(
+                    collection_id=task_id,
+                    total_entities=task["entities_collected"],
+                    total_relationships=task["relationships_collected"],
+                    duration=duration
+                )
+            except Exception as e:
+                logger.warning(f"Failed to broadcast collection completed: {e}")
 
         except Exception as e:
             logger.exception(f"Task {task_id} failed: {e}")
             task["status"] = TaskStatus.FAILED.value
             task["errors"].append(str(e))
             task["end_time"] = datetime.utcnow().isoformat()
+            
+            # Broadcast collection error
+            try:
+                await broadcast_collection_error(
+                    collection_id=task_id,
+                    error_message=str(e),
+                    error_type="execution_failed"
+                )
+            except Exception as broadcast_error:
+                logger.warning(f"Failed to broadcast collection error: {broadcast_error}")
 
         return task
 
@@ -327,9 +390,21 @@ class CollectionPipelineService:
                         self.active_tasks[task_id]["collectors_completed"].append(
                             collector.name
                         )
-                        self.active_tasks[task_id]["progress"] = int(
-                            (i + 1) / total * 80
-                        )  # Reserve 20% for processing
+                        progress = int((i + 1) / total * 80)  # Reserve 20% for processing
+                        self.active_tasks[task_id]["progress"] = progress
+                        
+                        # Broadcast progress every 5 collectors or on last collector
+                        if (i + 1) % 5 == 0 or (i + 1) == total:
+                            try:
+                                await broadcast_collection_progress(
+                                    collection_id=task_id,
+                                    entities_found=self.active_tasks[task_id].get("entities_collected", 0),
+                                    relationships_found=self.active_tasks[task_id].get("relationships_collected", 0),
+                                    status="collecting",
+                                    percentage=progress
+                                )
+                            except Exception as e:
+                                logger.warning(f"Failed to broadcast collection progress: {e}")
 
                     if result.errors:
                         if task_id in self.active_tasks:

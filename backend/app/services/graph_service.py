@@ -6,6 +6,7 @@ graph database management and analysis.
 """
 
 import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,21 +16,32 @@ from app.intelligence_graph.graph_models import (EntityNode, GraphData,
                                                  RelationshipType, TargetNode)
 from app.intelligence_graph.graph_operations import get_graph_operations
 from app.intelligence_graph.neo4j_client import (close_neo4j_connection,
-                                                 get_neo4j_client,
-                                                 init_neo4j_connection)
+                                                  get_neo4j_client,
+                                                  init_neo4j_connection)
 from app.schemas.graph import (GraphAnalysisRequest, GraphAnalysisResponse,
-                               GraphEdgeCreate, GraphEdgeCreateResponse,
-                               GraphExpandRequest, GraphExpandResponse,
-                               GraphExportRequest, GraphExportResponse,
-                               GraphHealthResponse, GraphNodeCreate,
-                               GraphNodeCreateResponse,
-                               GraphNodeDeleteResponse, GraphNodeUpdate,
-                               GraphNodeUpdateResponse, GraphPathRequest,
-                               GraphPathResponse, GraphSearchRequest,
-                               GraphSearchResponse, GraphStatistics)
+                                GraphEdgeCreate, GraphEdgeCreateResponse,
+                                GraphExpandRequest, GraphExpandResponse,
+                                GraphExportRequest, GraphExportResponse,
+                                GraphHealthResponse, GraphNodeCreate,
+                                GraphNodeCreateResponse,
+                                GraphNodeDeleteResponse, GraphNodeUpdate,
+                                GraphNodeUpdateResponse, GraphPathRequest,
+                                GraphPathResponse, GraphSearchRequest,
+                                GraphSearchResponse, GraphStatistics)
 
 # Configure logging
 logger = logging.getLogger("reconvault.services.graph")
+
+# Import WebSocket broadcast functions (lazy import to avoid circular dependency)
+_ws_broadcasts = None
+
+def _get_ws_broadcasts():
+    """Lazy import WebSocket broadcast functions"""
+    global _ws_broadcasts
+    if _ws_broadcasts is None:
+        from app.api import websockets
+        _ws_broadcasts = websockets
+    return _ws_broadcasts
 
 
 class GraphService:
@@ -346,6 +358,18 @@ class GraphService:
                     properties=created_node,
                 )
 
+                # Broadcast node added event via WebSocket
+                try:
+                    ws = _get_ws_broadcasts()
+                    # Create background task for broadcast to avoid blocking
+                    asyncio.create_task(ws.broadcast_graph_node_added({
+                        "id": created_node.get("id"),
+                        "type": node_data.label,
+                        "properties": created_node
+                    }))
+                except Exception as ws_error:
+                    logger.warning(f"Failed to broadcast node added: {ws_error}")
+
                 return GraphNodeCreateResponse(
                     success=True,
                     node_id=created_node.get("id"),
@@ -393,6 +417,19 @@ class GraphService:
                     type=edge_data.relationship_type,
                     properties=edge_data.properties,
                 )
+
+                # Broadcast edge added event via WebSocket
+                try:
+                    ws = _get_ws_broadcasts()
+                    # Create background task for broadcast to avoid blocking
+                    asyncio.create_task(ws.broadcast_graph_edge_added({
+                        "source": edge_data.source_node_id,
+                        "target": edge_data.target_node_id,
+                        "relationship_type": edge_data.relationship_type,
+                        "confidence": edge_data.properties.get("confidence", 1.0)
+                    }))
+                except Exception as ws_error:
+                    logger.warning(f"Failed to broadcast edge added: {ws_error}")
 
                 return GraphEdgeCreateResponse(
                     success=True,
