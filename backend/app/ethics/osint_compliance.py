@@ -5,10 +5,10 @@ Handles ethical compliance for OSINT operations.
 """
 
 import asyncio
+import re
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -58,9 +58,7 @@ class OSINTCompliance:
 
         self.current_ua_index = 0
 
-    async def check_robots_txt(
-        self, domain: str, user_agent: str = "*", path: str = "/"
-    ) -> bool:
+    async def check_robots_txt(self, domain: str, user_agent: str = "*", path: str = "/") -> bool:
         """
         Check robots.txt and respect rules.
 
@@ -114,9 +112,7 @@ class OSINTCompliance:
             if rp:
                 allowed = rp.can_fetch(user_agent, path)
                 if not allowed:
-                    logger.warning(
-                        f"robots.txt disallows {path} for {user_agent} on {domain}"
-                    )
+                    logger.warning(f"robots.txt disallows {path} for {user_agent} on {domain}")
 
                 return allowed
 
@@ -172,6 +168,19 @@ class OSINTCompliance:
         # Apply delay if needed
         if delay > 0:
             logger.debug(f"Rate limiting: delaying {delay:.2f}s for {domain}")
+
+            # If delay is significant, consider it a minor violation or log it
+            if delay > 5.0:
+                asyncio.create_task(
+                    self.report_violation(
+                        violation_type="rate_limit",
+                        severity="low",
+                        message=f"Significant rate limit delay ({delay:.2f}s) for {domain}",
+                        source="rate_limiter",
+                        metadata={"domain": domain, "delay": delay},
+                    )
+                )
+
             await asyncio.sleep(delay)
 
         # Update cache
@@ -237,9 +246,7 @@ class OSINTCompliance:
 
             # If multiple indicators, flag as potential honeypot
             if indicators >= 2:
-                logger.warning(
-                    f"Potential honeypot detected: {domain} ({indicators} indicators)"
-                )
+                logger.warning(f"Potential honeypot detected: {domain} ({indicators} indicators)")
                 return True
 
         except Exception as e:
@@ -247,9 +254,7 @@ class OSINTCompliance:
 
         return False
 
-    def validate_data_sensitivity(
-        self, data: Any, collection_type: str
-    ) -> Dict[str, Any]:
+    def validate_data_sensitivity(self, data: Any, collection_type: str) -> Dict[str, Any]:
         """
         Check for PII and sensitive data collection.
 
@@ -273,21 +278,15 @@ class OSINTCompliance:
                 "phone": r"\b\d{3}-\d{3}-\d{4}\b",
             }
 
-            import re
-
             for pii_type, pattern in pii_patterns.items():
                 matches = re.findall(pattern, data_str)
                 if matches:
-                    result["issues"].append(
-                        {"type": pii_type, "count": len(matches), "severity": "HIGH"}
-                    )
+                    result["issues"].append({"type": pii_type, "count": len(matches), "severity": "HIGH"})
                     result["sensitive_data_detected"] = True
 
             # Check for passwords
             if "password" in data_str and ":" in data_str:
-                result["issues"].append(
-                    {"type": "potential_password", "count": 1, "severity": "CRITICAL"}
-                )
+                result["issues"].append({"type": "potential_password", "count": 1, "severity": "CRITICAL"})
                 result["sensitive_data_detected"] = True
 
             # Check for API keys (basic pattern)
@@ -310,21 +309,30 @@ class OSINTCompliance:
 
             # Determine if collection should be blocked
             if result["sensitive_data_detected"]:
-                critical_issues = [
-                    i for i in result["issues"] if i.get("severity") == "CRITICAL"
-                ]
+                critical_issues = [i for i in result["issues"] if i.get("severity") == "CRITICAL"]
+
+                # Report violation for any sensitive data detected
+                for issue in result["issues"]:
+                    asyncio.create_task(
+                        self.report_violation(
+                            violation_type="data_sensitivity",
+                            severity=issue["severity"].lower(),
+                            message=f"Sensitive data detected ({issue['type']}): {issue['count']} matches",
+                            source=collection_type,
+                            metadata={"issue": issue},
+                        )
+                    )
+
                 if critical_issues:
                     result["allowed"] = False
-                    logger.warning(f"Sensitive data detected - collection blocked")
+                    logger.warning("Sensitive data detected - collection blocked")
 
         except Exception as e:
             logger.error(f"Error validating data sensitivity: {e}")
 
         return result
 
-    def log_collection_activity(
-        self, target: str, data: Any, collection_type: str, status: str = "success"
-    ):
+    def log_collection_activity(self, target: str, data: Any, collection_type: str, status: str = "success"):
         """
         Log collection activity for audit trail.
 
@@ -334,6 +342,12 @@ class OSINTCompliance:
             collection_type: Type of collection
             status: Collection status
         """
+        import json
+        import uuid
+
+        from app.database import get_db
+        from app.models.intelligence import ComplianceAuditTrail
+
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "target": target,
@@ -344,12 +358,93 @@ class OSINTCompliance:
 
         logger.info(f"Collection activity: {log_entry}")
 
-        # In production, this would be stored in database
-        # for audit trail and compliance reporting
+        # Store in DB for audit trail
+        try:
+            db = next(get_db())
+            try:
+                audit_id = str(uuid.uuid4())
+                db_audit = ComplianceAuditTrail(
+                    id=audit_id,
+                    action="collected",
+                    actor="system",
+                    source=collection_type,
+                    status=status,
+                    details=json.dumps(log_entry),
+                    timestamp=datetime.utcnow(),
+                )
+                db.add(db_audit)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to log audit activity: {e}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to get DB session for audit: {e}")
 
-    async def get_ethical_verdict(
-        self, target: str, collection_type: str
-    ) -> Dict[str, Any]:
+    async def report_violation(
+        self,
+        violation_type: str,
+        severity: str,
+        message: str,
+        source: str,
+        collection_id: Optional[str] = None,
+        entity_id: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Record a compliance violation and broadcast it.
+        """
+        import json
+        import uuid
+
+        from app.api.websockets import broadcast_compliance_violation
+        from app.database import get_db
+        from app.models.intelligence import ComplianceViolation
+
+        violation_id = str(uuid.uuid4())
+
+        # Store in DB
+        try:
+            db = next(get_db())
+            try:
+                db_violation = ComplianceViolation(
+                    id=violation_id,
+                    collection_id=collection_id,
+                    entity_id=entity_id,
+                    violation_type=violation_type,
+                    severity=severity,
+                    message=message,
+                    source=source,
+                    metadata=json.dumps(metadata) if metadata else None,
+                    created_at=datetime.utcnow(),
+                )
+                db.add(db_violation)
+                db.commit()
+
+                # Broadcast via WebSocket
+                await broadcast_compliance_violation(
+                    {
+                        "id": violation_id,
+                        "type": violation_type,
+                        "severity": severity,
+                        "message": message,
+                        "source": source,
+                        "collection_id": collection_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
+
+                logger.warning(f"Compliance violation recorded: {violation_type} ({severity}) - {message}")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Failed to record compliance violation in DB: {e}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to get DB session for violation: {e}")
+
+    async def get_ethical_verdict(self, target: str, collection_type: str) -> Dict[str, Any]:
         """
         Get ethical verdict for collection operation.
 
@@ -368,6 +463,13 @@ class OSINTCompliance:
                 verdict["allowed"] = False
                 verdict["reason"] = "Target is in blocked domain list"
                 logger.warning(f"Collection blocked: {target} (blocked domain)")
+                await self.report_violation(
+                    violation_type="policy",
+                    severity="high",
+                    message=f"Attempted collection from blocked domain: {target}",
+                    source=collection_type,
+                    metadata={"target": target, "rule": "blocked_domains"},
+                )
                 return verdict
 
             # Check for honeypots
@@ -375,6 +477,13 @@ class OSINTCompliance:
                 verdict["allowed"] = False
                 verdict["reason"] = "Potential honeypot detected"
                 logger.warning(f"Collection blocked: {target} (honeypot)")
+                await self.report_violation(
+                    violation_type="policy",
+                    severity="medium",
+                    message=f"Potential honeypot detected: {target}",
+                    source=collection_type,
+                    metadata={"target": target, "rule": "honeypot_detection"},
+                )
                 return verdict
 
             # Check robots.txt for domains
@@ -386,6 +495,13 @@ class OSINTCompliance:
                         verdict["allowed"] = False
                         verdict["reason"] = "robots.txt disallows access"
                         logger.warning(f"Collection blocked: {target} (robots.txt)")
+                        await self.report_violation(
+                            violation_type="robots_txt",
+                            severity="medium",
+                            message=f"robots.txt restriction for {domain}",
+                            source=collection_type,
+                            metadata={"target": target, "domain": domain},
+                        )
                         return verdict
             except Exception as e:
                 logger.debug(f"Could not check robots.txt: {e}")
@@ -433,9 +549,7 @@ class OSINTCompliance:
 
                     try:
                         retry_date = parsedate_to_datetime(retry_after)
-                        delay = (
-                            retry_date - datetime.utcnow(retry_date.tzinfo)
-                        ).total_seconds()
+                        delay = (retry_date - datetime.utcnow(retry_date.tzinfo)).total_seconds()
                         if delay > 0:
                             logger.info(f"Retry-After date detected, waiting {delay}s")
                             await asyncio.sleep(delay)
@@ -448,9 +562,7 @@ class OSINTCompliance:
 
         return False
 
-    def check_jurisdiction_compliance(
-        self, target: str, collection_type: str
-    ) -> Dict[str, Any]:
+    def check_jurisdiction_compliance(self, target: str, collection_type: str) -> Dict[str, Any]:
         """
         Check compliance with jurisdiction-specific regulations.
 
@@ -483,16 +595,10 @@ class OSINTCompliance:
                 if domain.endswith(tld):
                     result["jurisdiction"] = jurisdiction
                     result["regulations"].append(jurisdiction)
-                    result["notes"].append(
-                        f"Ensure compliance with {jurisdiction} regulations"
-                    )
+                    result["notes"].append(f"Ensure compliance with {jurisdiction} regulations")
                     break
 
         except Exception as e:
             logger.error(f"Error checking jurisdiction compliance: {e}")
 
         return result
-
-
-# Import re at module level
-import re

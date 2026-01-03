@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EntityInspector from '../Inspector/EntityInspector';
 import RelationshipInspector from '../Inspector/RelationshipInspector';
+import CompliancePanel from '../Inspector/CompliancePanel';
 import { formatStatus } from '../../utils/formatters';
 
 const RightSidebar = ({
@@ -21,6 +22,7 @@ const RightSidebar = ({
     { id: 'metadata', label: 'Metadata', icon: '📋' },
     { id: 'relationships', label: 'Relations', icon: '🔗' },
     { id: 'risk', label: 'Risk', icon: '⚠️' },
+    { id: 'compliance', label: 'Policy', icon: '🛡️' },
     { id: 'history', label: 'History', icon: '📈' }
   ];
 
@@ -184,7 +186,7 @@ const RightSidebar = ({
               exit={{ opacity: 0, y: -20 }}
               className="p-4"
             >
-              {isEntity && (
+              {isEntity && activeTab !== 'compliance' && (
                 <EntityInspector
                   entity={selectedNode}
                   activeTab={activeTab}
@@ -192,12 +194,16 @@ const RightSidebar = ({
                 />
               )}
               
-              {isRelationship && (
+              {isRelationship && activeTab !== 'compliance' && (
                 <RelationshipInspector
                   relationship={selectedEdge}
                   activeTab={activeTab}
                   onAction={onRelationshipAction}
                 />
+              )}
+
+              {activeTab === 'compliance' && (
+                <CompliancePanel />
               )}
             </motion.div>
           )}

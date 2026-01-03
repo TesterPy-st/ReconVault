@@ -11,6 +11,7 @@ import LeftSidebar from './components/Panels/LeftSidebar';
 import RightSidebar from './components/Panels/RightSidebar';
 import BottomStats from './components/Panels/BottomStats';
 import GraphCanvas from './components/Graph/GraphCanvas';
+import ComplianceDashboard from './components/Dashboard/ComplianceDashboard';
 
 // Form Components
 import ReconSearchForm from './components/Forms/ReconSearchForm';
@@ -27,6 +28,7 @@ function App() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [graphContainerSize, setGraphContainerSize] = useState({ width: 800, height: 600 });
+  const [activeView, setActiveView] = useState('graph'); // 'graph' or 'compliance'
 
   // Hooks
   const {
@@ -42,8 +44,21 @@ function App() {
     performance
   } = useGraph();
 
-  const { connected: wsConnected, connecting: wsConnecting } = useWebSocket();
+  const { connected: wsConnected, connecting: wsConnecting, addEventListener } = useWebSocket();
   const { success, error: showError, loading: showLoading } = useToast();
+
+  // WebSocket Event Listeners
+  useEffect(() => {
+    if (wsConnected) {
+      const unsubscribeViolation = addEventListener('compliance_violation', (data) => {
+        showError(`Compliance Violation: ${data.message} (${data.severity.toUpperCase()})`);
+      });
+      
+      return () => {
+        unsubscribeViolation();
+      };
+    }
+  }, [wsConnected, addEventListener, showError]);
 
   // Sample data for demonstration
   const [sampleData] = useState({
@@ -342,6 +357,12 @@ function App() {
     console.log('Menu action:', action);
     
     switch (action) {
+      case 'compliance':
+        setActiveView(activeView === 'compliance' ? 'graph' : 'compliance');
+        break;
+      case 'home':
+        setActiveView('graph');
+        break;
       case 'export':
         success('Graph export functionality initiated');
         break;
@@ -435,22 +456,26 @@ function App() {
             onStartCollection={handleStartCollection}
           />
 
-          {/* Graph Container */}
+          {/* Graph Container or Compliance Dashboard */}
           <div className="flex-1 relative">
-            <GraphCanvas
-              nodes={sampleData.nodes}
-              edges={sampleData.edges}
-              selectedNode={selectedNode}
-              selectedEdge={selectedEdge}
-              onNodeSelect={handleNodeSelect}
-              onNodeHover={handleNodeHover}
-              onEdgeSelect={handleEdgeSelect}
-              onEdgeHover={handleEdgeHover}
-              filters={filters}
-              width={graphContainerSize.width}
-              height={graphContainerSize.height}
-              className="w-full h-full"
-            />
+            {activeView === 'graph' ? (
+              <GraphCanvas
+                nodes={sampleData.nodes}
+                edges={sampleData.edges}
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                onNodeSelect={handleNodeSelect}
+                onNodeHover={handleNodeHover}
+                onEdgeSelect={handleEdgeSelect}
+                onEdgeHover={handleEdgeHover}
+                filters={filters}
+                width={graphContainerSize.width}
+                height={graphContainerSize.height}
+                className="w-full h-full"
+              />
+            ) : (
+              <ComplianceDashboard />
+            )}
 
             {/* Loading Overlay */}
             {loading && (

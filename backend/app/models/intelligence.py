@@ -442,3 +442,159 @@ class Anomaly(Base):
         if notes:
             self.review_notes = notes
         self.updated_at = datetime.now(timezone.utc)
+
+
+class ComplianceViolation(Base):
+    """
+    Compliance violation model for tracking OSINT policy breaches.
+
+    Attributes:
+        id (str): Primary key (UUID)
+        collection_id (str): Associated collection task ID
+        entity_id (int): Foreign key to associated entity (optional)
+        violation_type (str): Type of violation (rate_limit, robots_txt, policy, data_sensitivity)
+        severity (str): Severity level (low, medium, high, critical)
+        message (str): Human-readable violation message
+        source (str): Source of violation (collector name, API)
+        metadata (str): JSON string for flexible metadata
+        resolved (bool): Whether violation has been resolved
+        resolved_at (datetime): When violation was resolved
+        resolution_notes (str): Notes on violation resolution
+        created_at (datetime): Creation timestamp
+    """
+
+    __tablename__ = "compliance_violations"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, index=True)
+
+    # Identification
+    collection_id = Column(String(36), index=True, nullable=True)
+    entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True, index=True)
+
+    # Violation details
+    violation_type = Column(String(50), nullable=False, index=True)
+    severity = Column(String(20), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    source = Column(String(100), nullable=False, index=True)
+
+    # Resolution and Metadata
+    metadata = Column(Text, nullable=True)  # JSON string
+    resolved = Column(Boolean, default=False, nullable=False, index=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    entity = relationship("Entity")
+
+    def __repr__(self) -> str:
+        """String representation of ComplianceViolation instance"""
+        return f"<ComplianceViolation(id={self.id}, type='{self.violation_type}', severity='{self.severity}', resolved={self.resolved})>"
+
+    def to_dict(self) -> dict:
+        """
+        Convert ComplianceViolation instance to dictionary.
+
+        Returns:
+            dict: Dictionary representation of violation
+        """
+        import json
+
+        metadata_dict = {}
+        if self.metadata:
+            try:
+                metadata_dict = json.loads(self.metadata)
+            except json.JSONDecodeError:
+                pass
+
+        return {
+            "id": self.id,
+            "collection_id": self.collection_id,
+            "entity_id": self.entity_id,
+            "violation_type": self.violation_type,
+            "severity": self.severity,
+            "message": self.message,
+            "source": self.source,
+            "metadata": metadata_dict,
+            "resolved": self.resolved,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "resolution_notes": self.resolution_notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ComplianceAuditTrail(Base):
+    """
+    Compliance audit trail model for tracking data handling actions.
+
+    Attributes:
+        id (str): Primary key (UUID)
+        entity_id (int): Foreign key to associated entity (optional)
+        action (str): Action performed (collected, accessed, exported, deleted)
+        actor (str): System or user ID who performed action
+        timestamp (datetime): When action occurred
+        source (str): Collector name or API endpoint
+        status (str): Outcome of action (success, warning, blocked)
+        details (str): JSON string for additional details
+        ip_address (str): IP address of actor
+        user_agent (str): User agent of actor
+    """
+
+    __tablename__ = "compliance_audit_trail"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, index=True)
+
+    # Relationships
+    entity_id = Column(Integer, ForeignKey("entities.id"), nullable=True, index=True)
+
+    # Action details
+    action = Column(String(50), nullable=False, index=True)
+    actor = Column(String(100), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    source = Column(String(100), nullable=False, index=True)
+    status = Column(String(20), nullable=False, index=True)
+
+    # Additional info
+    details = Column(Text, nullable=True)  # JSON string
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+
+    # Relationships
+    entity = relationship("Entity")
+
+    def __repr__(self) -> str:
+        """String representation of ComplianceAuditTrail instance"""
+        return f"<ComplianceAuditTrail(id={self.id}, action='{self.action}', actor='{self.actor}', status='{self.status}')>"
+
+    def to_dict(self) -> dict:
+        """
+        Convert ComplianceAuditTrail instance to dictionary.
+
+        Returns:
+            dict: Dictionary representation of audit trail entry
+        """
+        import json
+
+        details_dict = {}
+        if self.details:
+            try:
+                details_dict = json.loads(self.details)
+            except json.JSONDecodeError:
+                pass
+
+        return {
+            "id": self.id,
+            "entity_id": self.entity_id,
+            "action": self.action,
+            "actor": self.actor,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "source": self.source,
+            "status": self.status,
+            "details": details_dict,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+        }

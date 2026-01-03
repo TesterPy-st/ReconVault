@@ -260,20 +260,20 @@ const TopHeader = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => onMenuAction('export')}
+            onClick={() => onMenuAction('compliance')}
             className="
               px-3 py-2 rounded-lg border border-cyber-border
               text-cyber-gray hover:text-neon-cyan hover:border-neon-cyan
               text-xs font-mono transition-all
             "
           >
-            💾 Export
+            🛡️ Compliance
           </motion.button>
           
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => onMenuAction('settings')}
+            onClick={() => onMenuAction('export')}
             className="
               px-3 py-2 rounded-lg border border-cyber-border
               text-cyber-gray hover:text-neon-green hover:border-neon-green
