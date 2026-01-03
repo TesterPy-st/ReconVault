@@ -461,7 +461,7 @@ class CollectionPipelineService:
                     "entity_type": e.entity_type,
                     "value": e.value,
                     "risk_level": e.risk_level,
-                    "metadata": e.metadata,
+                    "metadata": e.entity_metadata,
                 }
                 for e in entities_data
             ],

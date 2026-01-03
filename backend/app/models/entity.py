@@ -80,7 +80,7 @@ class Entity(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    entity_metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
     tags = Column(String(500), nullable=True)  # Comma-separated tags
     
     # Timestamps
@@ -168,7 +168,7 @@ class Entity(Base):
             "source": self.source,
             "is_verified": self.is_verified,
             "description": self.description,
-            "metadata": self.metadata,
+            "metadata": self.entity_metadata,
             "tags": self.tags,
             "first_seen": self.first_seen.isoformat() if self.first_seen else None,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,

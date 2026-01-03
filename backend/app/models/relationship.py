@@ -93,7 +93,7 @@ class Relationship(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    rel_metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
     
     # Timestamps
     first_observed = Column(DateTime(timezone=True), nullable=True)
@@ -190,7 +190,7 @@ class Relationship(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "metadata": self.rel_metadata,
             "first_observed": self.first_observed.isoformat() if self.first_observed else None,
             "last_observed": self.last_observed.isoformat() if self.last_observed else None,
             "verified": self.verified,
