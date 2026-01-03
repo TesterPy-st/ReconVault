@@ -80,7 +80,7 @@ class TargetResponse(TargetBase):
             status=target.status,
             risk_score=target.risk_score,
             description=target.description,
-            metadata=target.metadata,
+            metadata=target.target_metadata,
             created_at=target.created_at,
             updated_at=target.updated_at,
             is_active=target.is_active,

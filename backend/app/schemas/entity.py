@@ -114,7 +114,7 @@ class EntityResponse(EntityBase):
             source=entity.source,
             target_id=entity.target_id,
             description=entity.description,
-            metadata=entity.metadata,
+            metadata=entity.entity_metadata,
             tags=entity.get_tags() if entity.tags else None,
             first_seen=entity.first_seen,
             last_seen=entity.last_seen,

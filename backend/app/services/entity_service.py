@@ -80,7 +80,7 @@ class EntityService:
                 source=entity_data.source,
                 target_id=entity_data.target_id,
                 description=entity_data.description,
-                metadata=entity_data.metadata,
+                entity_metadata=entity_data.metadata,
                 tags=tags_str,
                 first_seen=entity_data.first_seen,
                 last_seen=entity_data.last_seen,
@@ -213,6 +213,10 @@ class EntityService:
             # Handle tags conversion
             if "tags" in update_data and update_data["tags"] is not None:
                 update_data["tags"] = ",".join(update_data["tags"])
+
+            # Handle metadata rename
+            if "metadata" in update_data:
+                update_data["entity_metadata"] = update_data.pop("metadata")
 
             for field, value in update_data.items():
                 setattr(db_entity, field, value)

@@ -58,7 +58,7 @@ class TargetService:
                 status=target_data.status,
                 risk_score=target_data.risk_score,
                 description=target_data.description,
-                metadata=target_data.metadata,
+                target_metadata=target_data.metadata,
             )
 
             self.db.add(db_target)
@@ -158,6 +158,9 @@ class TargetService:
 
             # Update fields
             update_data = target_data.dict(exclude_unset=True)
+            if "metadata" in update_data:
+                update_data["target_metadata"] = update_data.pop("metadata")
+
             for field, value in update_data.items():
                 setattr(db_target, field, value)
 
@@ -437,7 +440,7 @@ class TargetService:
                         status=target_data.status,
                         risk_score=target_data.risk_score,
                         description=target_data.description,
-                        metadata=target_data.metadata,
+                        target_metadata=target_data.metadata,
                     )
 
                     self.db.add(db_target)

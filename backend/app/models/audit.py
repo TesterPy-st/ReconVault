@@ -5,7 +5,7 @@ This module defines the AuditLog SQLAlchemy model for tracking
 all system activities and changes for compliance and security.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -165,8 +165,8 @@ class AuditLog(Base):
     )
     
     # Risk assessment
-    risk_score = Column(float, default=0.0, nullable=False, index=True)
-    metadata = Column(Text, nullable=True)  # JSON string for additional metadata
+    risk_score = Column(Float, default=0.0, nullable=False, index=True)
+    log_metadata = Column(Text, nullable=True)  # JSON string for additional metadata
     
     # Created at (for indexing purposes)
     created_at = Column(
