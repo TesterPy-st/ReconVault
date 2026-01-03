@@ -5,35 +5,35 @@ This module contains the main FastAPI application setup, configuration,
 and route registration for the ReconVault cyber reconnaissance system.
 """
 
+import logging
 import os
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from datetime import datetime
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
-from dotenv import load_dotenv
-import logging
-from datetime import datetime
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 # Load environment variables
 load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("reconvault")
-
-# Import configuration and database
-from app.config import settings
-from app.database import init_db, close_db_connections, test_db_connection
-from app.intelligence_graph.neo4j_client import init_neo4j_connection, close_neo4j_connection
 
 # Import API routers
 from app.api.routes import api_router
 from app.api.websockets import router as websocket_router
+# Import configuration and database
+from app.config import settings
+from app.database import close_db_connections, init_db, test_db_connection
+from app.intelligence_graph.neo4j_client import (close_neo4j_connection,
+                                                 init_neo4j_connection)
 
 # Create FastAPI application
 description = """
@@ -55,14 +55,8 @@ app = FastAPI(
     title=settings.API_TITLE,
     description=description,
     version=settings.API_VERSION,
-    contact={
-        "name": "ReconVault Team",
-        "email": "contact@reconvault.com"
-    },
-    license_info={
-        "name": "MIT License",
-        "url": "https://opensource.org/licenses/MIT"
-    }
+    contact={"name": "ReconVault Team", "email": "contact@reconvault.com"},
+    license_info={"name": "MIT License", "url": "https://opensource.org/licenses/MIT"},
 )
 
 # Add CORS middleware
@@ -77,12 +71,13 @@ app.add_middleware(
 # Add GZIP middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+
 # Health Check Endpoint
 @app.get("/health", tags=["system"])
 async def health_check():
     """
     Health check endpoint to verify API is running
-    
+
     Returns:
         dict: System health status
     """
@@ -91,15 +86,16 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "reconvault-backend",
-        "version": settings.APP_VERSION
+        "version": settings.APP_VERSION,
     }
+
 
 # Root Endpoint
 @app.get("/", tags=["system"])
 async def root():
     """
     Root endpoint providing basic system information
-    
+
     Returns:
         dict: System information
     """
@@ -108,24 +104,25 @@ async def root():
         "version": settings.APP_VERSION,
         "status": "operational",
         "documentation": "/docs",
-        "api_prefix": settings.API_PREFIX
+        "api_prefix": settings.API_PREFIX,
     }
+
 
 # Error Handling Middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """
     Middleware to log all incoming requests
-    
+
     Args:
         request: Incoming HTTP request
         call_next: Next middleware/function to call
-    
+
     Returns:
         Response from downstream handlers
     """
     logger.info(f"Incoming request: {request.method} {request.url}")
-    
+
     try:
         response = await call_next(request)
         logger.info(f"Response status: {response.status_code}")
@@ -134,19 +131,20 @@ async def log_requests(request: Request, call_next):
         logger.error(f"Request failed: {str(e)}")
         return JSONResponse(
             status_code=500,
-            content={"message": "Internal server error", "error": str(e)}
+            content={"message": "Internal server error", "error": str(e)},
         )
+
 
 # Global exception handler
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """
     Global HTTP exception handler
-    
+
     Args:
         request: FastAPI request
         exc: HTTP exception
-    
+
     Returns:
         JSON response with error details
     """
@@ -157,20 +155,131 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "error": True,
             "message": exc.detail,
             "status_code": exc.status_code,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
+
+
+# Custom exception handlers
+from app.exceptions import (DatabaseError, DuplicateEntityError,
+                            EntityNotFoundError, InvalidRelationshipError,
+                            Neo4jError, RelationshipNotFoundError)
+from app.exceptions import ValidationError as ReconVaultValidationError
+
+
+@app.exception_handler(EntityNotFoundError)
+async def entity_not_found_handler(request: Request, exc: EntityNotFoundError):
+    """Handler for EntityNotFoundError"""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 404,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(RelationshipNotFoundError)
+async def relationship_not_found_handler(
+    request: Request, exc: RelationshipNotFoundError
+):
+    """Handler for RelationshipNotFoundError"""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 404,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(DuplicateEntityError)
+async def duplicate_entity_handler(request: Request, exc: DuplicateEntityError):
+    """Handler for DuplicateEntityError"""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 409,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(InvalidRelationshipError)
+async def invalid_relationship_handler(request: Request, exc: InvalidRelationshipError):
+    """Handler for InvalidRelationshipError"""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": True,
+            "message": exc.message,
+            "status_code": 400,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(ReconVaultValidationError)
+async def validation_error_handler(request: Request, exc: ReconVaultValidationError):
+    """Handler for ValidationError"""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": True,
+            "message": exc.message,
+            "field": exc.field,
+            "status_code": 400,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(DatabaseError)
+async def database_error_handler(request: Request, exc: DatabaseError):
+    """Handler for DatabaseError"""
+    logger.error(f"Database error: {exc.message}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "message": "Database operation failed",
+            "status_code": 500,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(Neo4jError)
+async def neo4j_error_handler(request: Request, exc: Neo4jError):
+    """Handler for Neo4jError"""
+    logger.error(f"Neo4j error: {exc.message}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "message": "Graph database operation failed",
+            "status_code": 500,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
 
 # Generic exception handler
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """
     Global exception handler for unhandled exceptions
-    
+
     Args:
         request: FastAPI request
         exc: Unhandled exception
-    
+
     Returns:
         JSON response with error details
     """
@@ -181,9 +290,10 @@ async def general_exception_handler(request: Request, exc: Exception):
             "error": True,
             "message": "Internal server error",
             "status_code": 500,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
+
 
 # Include API routers
 app.include_router(api_router)
@@ -191,42 +301,45 @@ app.include_router(api_router)
 # Include WebSocket router
 app.include_router(websocket_router, prefix="/ws")
 
+
 # Custom OpenAPI schema
 def custom_openapi():
     """
     Custom OpenAPI schema configuration
-    
+
     Returns:
         dict: Customized OpenAPI schema
     """
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     openapi_schema = get_openapi(
         title=settings.API_TITLE,
         version=settings.API_VERSION,
         description=description,
         routes=app.routes,
     )
-    
+
     openapi_schema["info"]["x-logo"] = {
         "url": "https://raw.githubusercontent.com/reconvault/assets/main/logo.png"
     }
-    
+
     # Add security schemes
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT authorization header using the Bearer scheme"
+            "description": "JWT authorization header using the Bearer scheme",
         }
     }
-    
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
+
 app.openapi = custom_openapi
+
 
 # Database initialization
 @app.on_event("startup")
@@ -237,23 +350,23 @@ async def startup_event():
     logger.info("Starting ReconVault backend service...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"Backend version: {settings.APP_VERSION}")
-    
+
     try:
         # Initialize database
         logger.info("Initializing database...")
         init_db()
         logger.info("Database initialized successfully")
-        
+
         # Test database connection
         if test_db_connection():
             logger.info("Database connection verified")
         else:
             logger.warning("Database connection test failed")
-        
+
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         # Don't fail startup for database issues in development
-    
+
     try:
         # Initialize Neo4j connection
         logger.info("Initializing Neo4j connection...")
@@ -264,8 +377,9 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Neo4j initialization failed: {e}")
         # Don't fail startup for Neo4j issues in development
-    
+
     logger.info("ReconVault backend service started successfully")
+
 
 # Shutdown event handler
 @app.on_event("shutdown")
@@ -274,22 +388,23 @@ async def shutdown_event():
     Shutdown event handler for cleanup
     """
     logger.info("Shutting down ReconVault backend service...")
-    
+
     try:
         # Close database connections
         close_db_connections()
         logger.info("Database connections closed")
     except Exception as e:
         logger.error(f"Error closing database connections: {e}")
-    
+
     try:
         # Close Neo4j connection
         close_neo4j_connection()
         logger.info("Neo4j connection closed")
     except Exception as e:
         logger.error(f"Error closing Neo4j connection: {e}")
-    
+
     logger.info("Graceful shutdown complete")
+
 
 # Health check for Docker
 @app.get("/healthz")
@@ -298,6 +413,7 @@ async def healthz():
     Kubernetes health check endpoint
     """
     return {"status": "ok"}
+
 
 # Readiness check for Docker
 @app.get("/readyz")
@@ -308,7 +424,7 @@ async def readyz():
     try:
         # Check if database is ready
         db_ready = test_db_connection()
-        
+
         if db_ready:
             return {"status": "ready", "database": "connected"}
         else:
@@ -316,20 +432,21 @@ async def readyz():
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Service not ready: {str(e)}")
 
+
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Get configuration from environment
     host = os.getenv("BACKEND_HOST", "0.0.0.0")
     port = int(os.getenv("BACKEND_PORT", "8000"))
-    
+
     logger.info(f"Starting server on {host}:{port}")
-    
+
     uvicorn.run(
         "app.main:app",
         host=host,
         port=port,
         reload=settings.DEBUG,
         log_level=settings.LOG_LEVEL.lower(),
-        access_log=True
+        access_log=True,
     )

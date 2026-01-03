@@ -5,24 +5,30 @@ This module contains all data models and schemas for the ReconVault
 cyber reconnaissance intelligence system.
 """
 
-# Import all SQLAlchemy models
-from .target import Target, TargetType, TargetStatus
-from .entity import Entity, EntityType
-from .relationship import Relationship, RelationshipType
-from .intelligence import Intelligence, IntelligenceType, IntelligencePriority, IntelligenceStatus
-from .user import User, UserRole, UserStatus
-from .audit import AuditLog, AuditAction, AuditSeverity, AuditStatus
+from typing import Any, Dict, List, Optional
+
+# Import base Pydantic models
+from pydantic import BaseModel
 
 # Import base database components
 from app.database import Base, metadata
 
-# Import base Pydantic models
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from .audit import AuditAction, AuditLog, AuditSeverity, AuditStatus
+from .collection_result import CollectionResult
+from .collection_task import CollectionTask
+from .entity import Entity, EntityType
+from .intelligence import (Intelligence, IntelligencePriority,
+                           IntelligenceStatus, IntelligenceType)
+from .relationship import Relationship, RelationshipType
+from .risk_assessment import RiskAssessment
+# Import all SQLAlchemy models
+from .target import Target, TargetStatus, TargetType
+from .user import User, UserRole, UserStatus
 
 
 class BaseResponse(BaseModel):
     """Base response model"""
+
     status: str
     message: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
@@ -30,6 +36,7 @@ class BaseResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response model"""
+
     status: str
     timestamp: str
     service: str
@@ -38,6 +45,7 @@ class HealthResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response model"""
+
     message: str
     error: Optional[str] = None
     code: Optional[int] = None
@@ -48,16 +56,18 @@ __all__ = [
     # Database models
     "Base",
     "Target",
-    "Entity", 
+    "Entity",
     "Relationship",
     "Intelligence",
     "User",
     "AuditLog",
-    
+    "CollectionTask",
+    "CollectionResult",
+    "RiskAssessment",
     # Enums
     "TargetType",
     "TargetStatus",
-    "EntityType", 
+    "EntityType",
     "RelationshipType",
     "IntelligenceType",
     "IntelligencePriority",
@@ -65,11 +75,10 @@ __all__ = [
     "UserRole",
     "UserStatus",
     "AuditAction",
-    "AuditSeverity", 
+    "AuditSeverity",
     "AuditStatus",
-    
     # Base models
     "BaseResponse",
     "HealthResponse",
-    "ErrorResponse"
+    "ErrorResponse",
 ]

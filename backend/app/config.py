@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     GRAPH_DEPTH_LIMIT: int = 5
     RISK_SCORE_THRESHOLD: float = 0.7
     
+    # Pagination Settings
+    DEFAULT_PAGE_SIZE: int = 50
+    MAX_PAGE_SIZE: int = 1000
+    DEFAULT_OFFSET: int = 0
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
