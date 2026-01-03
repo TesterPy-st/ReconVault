@@ -5,18 +5,20 @@ This module defines the RiskAssessment SQLAlchemy model for storing
 entity risk assessments.
 """
 
-from sqlalchemy import Column, String, DateTime, Float, ForeignKey, JSON
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from app.database import Base
 import uuid
+
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database import Base
 
 
 class RiskAssessment(Base):
     """
     RiskAssessment model representing risk evaluations of entities.
-    
+
     Attributes:
         id (UUID): Primary key
         entity_id (UUID): Foreign key to entity being assessed
@@ -27,46 +29,51 @@ class RiskAssessment(Base):
         created_at (datetime): Creation timestamp
         updated_at (datetime): Last update timestamp
     """
-    
+
     __tablename__ = "risk_assessments"
-    
+
     # Primary key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    
+
     # Foreign key
-    entity_id = Column(UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True)
-    
+    entity_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("entities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     # Risk assessment data
     level = Column(String(50), nullable=False, index=True)
     score = Column(Float, nullable=False, index=True)
     factors = Column(JSON, nullable=False, default=list)
-    
+
     # Timestamps
-    assessed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    assessed_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
     )
-    
+
     # Relationships
     entity = relationship("Entity")
-    
+
     def __repr__(self) -> str:
         """String representation of RiskAssessment instance"""
         return f"<RiskAssessment(id={self.id}, entity_id={self.entity_id}, level='{self.level}', score={self.score})>"
-    
+
     @property
     def risk_category(self) -> str:
         """
         Get risk category based on score.
-        
+
         Returns:
             str: Risk category
         """
@@ -80,11 +87,11 @@ class RiskAssessment(Base):
             return "low"
         else:
             return "info"
-    
+
     def to_dict(self) -> dict:
         """
         Convert RiskAssessment instance to dictionary.
-        
+
         Returns:
             dict: Dictionary representation of risk assessment
         """

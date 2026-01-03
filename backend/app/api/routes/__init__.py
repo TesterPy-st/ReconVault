@@ -9,7 +9,8 @@ ReconVault intelligence system.
 from fastapi import APIRouter
 
 # Import route modules
-from . import health, targets, entities, graph, audit, relationships, collection, risk
+from . import (audit, collection, entities, graph, health, relationships, risk,
+               targets)
 
 # Create main API router with v1 prefix
 api_router = APIRouter(prefix="/api/v1")
