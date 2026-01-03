@@ -1,9 +1,10 @@
 // Left Sidebar Component - Target input and controls
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COLLECTION_TYPES } from '../../utils/constants';
 import ReconSearchForm from '../Forms/ReconSearchForm';
 import FilterPanel from '../Forms/FilterPanel';
+import webSocketService from '../../services/websocket';
 
 const LeftSidebar = ({
   isCollapsed = false,
@@ -19,6 +20,105 @@ const LeftSidebar = ({
   onCancelTask = () => {}
 }) => {
   const [currentTab, setCurrentTab] = useState(activeTab);
+  const [liveProgress, setLiveProgress] = useState({});
+  
+  // Listen for real-time collection progress via WebSocket
+  useEffect(() => {
+    const unsubscribeStarted = webSocketService.onCollectionStarted((data) => {
+      setLiveProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          id: data.collection_id,
+          target: data.target,
+          collectorType: data.collector_type,
+          status: 'started',
+          percentage: 0,
+          entitiesFound: 0,
+          relationshipsFound: 0,
+          startTime: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeProgress = webSocketService.onCollectionProgress((data) => {
+      setLiveProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          ...prev[data.collection_id],
+          status: data.status,
+          percentage: data.percentage,
+          entitiesFound: data.entities_found,
+          relationshipsFound: data.relationships_found,
+          lastUpdate: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeCompleted = webSocketService.onCollectionCompleted((data) => {
+      setLiveProgress(prev => {
+        const updated = { ...prev };
+        const task = updated[data.collection_id];
+        if (task) {
+          updated[data.collection_id] = {
+            ...task,
+            status: 'completed',
+            percentage: 100,
+            totalEntities: data.total_entities,
+            totalRelationships: data.total_relationships,
+            duration: data.duration,
+            endTime: new Date()
+          };
+        }
+        // Remove from live progress after 5 seconds
+        setTimeout(() => {
+          setLiveProgress(prev => {
+            const updated = { ...prev };
+            delete updated[data.collection_id];
+            return updated;
+          });
+        }, 5000);
+        return updated;
+      });
+    });
+    
+    const unsubscribeError = webSocketService.onCollectionError((data) => {
+      setLiveProgress(prev => {
+        const updated = { ...prev };
+        const task = updated[data.collection_id];
+        if (task) {
+          updated[data.collection_id] = {
+            ...task,
+            status: 'error',
+            error: data.error_message,
+            endTime: new Date()
+          };
+        }
+        // Remove from live progress after 3 seconds
+        setTimeout(() => {
+          setLiveProgress(prev => {
+            const updated = { ...prev };
+            delete updated[data.collection_id];
+            return updated;
+          });
+        }, 3000);
+        return updated;
+      });
+    });
+    
+    return () => {
+      unsubscribeStarted();
+      unsubscribeProgress();
+      unsubscribeCompleted();
+      unsubscribeError();
+    };
+  }, []);
+  
+  // Convert live progress to array for display
+  const liveTasksList = useMemo(() => {
+    return Object.values(liveProgress).filter(task => 
+      task.status !== 'completed' && task.status !== 'error'
+    );
+  }, [liveProgress]);
 
   useEffect(() => {
     setCurrentTab(activeTab);
@@ -217,17 +317,84 @@ const LeftSidebar = ({
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-medium text-neon-green">Active Tasks</h3>
                   <span className="text-xs text-cyber-gray">
-                    {activeTasks.length} running
+                    {activeTasks.length + liveTasksList.length} running
                   </span>
                 </div>
-                
-                {activeTasks.length === 0 ? (
+
+                {activeTasks.length === 0 && liveTasksList.length === 0 ? (
                   <div className="text-center py-8 text-cyber-gray">
                     <span className="text-2xl block mb-2">⚙️</span>
                     <p className="text-sm">No active tasks</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {/* Live WebSocket tasks */}
+                    {liveTasksList.map((task) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="
+                          p-3 rounded border border-cyber-border bg-cyber-light
+                          border-l-4 border-l-neon-green transition-all
+                        "
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="text-xs font-mono text-neon-cyan mb-1">
+                              {task.target}
+                            </div>
+                            <div className="text-xs text-cyber-gray">
+                              {task.collectorType} collector
+                            </div>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            task.status === 'error'
+                              ? 'bg-danger-red text-white'
+                              : 'bg-neon-green text-white'
+                          }`}>
+                            {task.status}
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        {task.status !== 'error' && (
+                          <div className="mb-2">
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-cyber-gray">
+                                {task.entitiesFound} entities • {task.relationshipsFound} relationships
+                              </span>
+                              <span className="text-neon-green font-mono">
+                                {task.percentage}%
+                              </span>
+                            </div>
+                            <div className="progress-cyber">
+                              <motion.div
+                                className="progress-cyber-bar info"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${task.percentage}%` }}
+                                transition={{ duration: 0.3 }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {task.status === 'error' && (
+                          <div className="text-xs text-danger-red bg-danger-red bg-opacity-10 p-2 rounded">
+                            {task.error}
+                          </div>
+                        )}
+
+                        {/* Duration for completed tasks */}
+                        {task.status === 'completed' && task.duration && (
+                          <div className="text-xs text-cyber-gray">
+                            Completed in {(task.duration / 60).toFixed(1)}s
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+
+                    {/* Existing active tasks */}
                     {activeTasks.map((task) => (
                       <motion.div
                         key={task.id}

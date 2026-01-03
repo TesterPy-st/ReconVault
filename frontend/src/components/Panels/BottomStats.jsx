@@ -1,7 +1,8 @@
 // Bottom Stats Component - metrics dashboard
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useGraph } from '../../hooks/useGraph';
+import webSocketService from '../../services/websocket';
 
 const BottomStats = ({
   isCollapsed = false,
@@ -29,22 +30,76 @@ const BottomStats = ({
     memoryUsage: 0,
     networkLatency: 0
   });
+  
+  const [liveMetrics, setLiveMetrics] = useState({
+    graph: null,
+    risk: null,
+    anomalies: []
+  });
+  
+  // Listen for live metrics via WebSocket
+  useEffect(() => {
+    const unsubscribeGraphMetrics = webSocketService.onMetricsGraphUpdate((data) => {
+      setLiveMetrics(prev => ({
+        ...prev,
+        graph: {
+          ...data,
+          timestamp: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeRiskMetrics = webSocketService.onMetricsRiskUpdate((data) => {
+      setLiveMetrics(prev => ({
+        ...prev,
+        risk: {
+          ...data,
+          timestamp: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeAnomalyDetected = webSocketService.onMetricsAnomalyDetected((data) => {
+      setLiveMetrics(prev => ({
+        ...prev,
+        anomalies: [
+          ...data,
+          {
+            ...data,
+            timestamp: new Date()
+          },
+          ...prev.anomalies.slice(-9) // Keep last 10 anomalies
+        ]
+      }));
+    });
+    
+    const unsubscribeAlert = webSocketService.onNotificationAlert((data) => {
+      console.log('[BottomStats] Received notification alert:', data);
+    });
+    
+    return () => {
+      unsubscribeGraphMetrics();
+      unsubscribeRiskMetrics();
+      unsubscribeAnomalyDetected();
+      unsubscribeAlert();
+    };
+  }, []);
 
   // Update stats when data changes
   useEffect(() => {
     const calculatedStats = {
-      totalNodes: nodes.length,
-      totalEdges: edges.length,
-      graphDensity: calculateGraphDensity(nodes.length, edges.length),
-      avgNodeDegree: calculateAverageNodeDegree(nodes, edges),
+      totalNodes: liveMetrics.graph?.node_count ?? nodes.length,
+      totalEdges: liveMetrics.graph?.edge_count ?? edges.length,
+      graphDensity: liveMetrics.graph?.graph_density ?? calculateGraphDensity(nodes.length, edges.length),
+      avgNodeDegree: liveMetrics.graph?.avg_degree ?? calculateAverageNodeDegree(nodes, edges),
       collectionTasks: Math.floor(Math.random() * 10) + 1, // Mock data
       dataSources: 7, // Mock data
-      lastUpdate: new Date(),
+      lastUpdate: liveMetrics.graph ? new Date(liveMetrics.graph.timestamp) : new Date(),
       criticalNodes: nodes.filter(n => n.riskLevel === 'CRITICAL').length,
       highRiskNodes: nodes.filter(n => n.riskLevel === 'HIGH').length
     };
     setStats(calculatedStats);
-  }, [nodes, edges]);
+  }, [nodes, edges, liveMetrics.graph]);
 
   // Update real-time metrics
   useEffect(() => {

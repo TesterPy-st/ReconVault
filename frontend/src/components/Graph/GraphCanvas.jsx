@@ -7,6 +7,7 @@ import { formatEntityValue } from '../../utils/formatters';
 import GraphNode from './GraphNode';
 import GraphEdge from './GraphEdge';
 import GraphControls from './GraphControls';
+import webSocketService from '../../services/websocket';
 
 const GraphCanvas = ({
   nodes = [],
@@ -35,11 +36,19 @@ const GraphCanvas = ({
   const [highlightNodes, setHighlightNodes] = useState(new Set());
   const [highlightLinks, setHighlightLinks] = useState(new Set());
   const [hoverNode, setHoverNode] = useState(null);
+  
+  // Local state for graph data to support live updates
+  const [localNodes, setLocalNodes] = useState(nodes);
+  const [localEdges, setLocalEdges] = useState(edges);
+  
+  // Track new nodes for animation
+  const [newNodeIds, setNewNodeIds] = useState(new Set());
+  const [newEdgeIds, setNewEdgeIds] = useState(new Set());
 
   // Filtered data based on active filters
   const filteredData = useMemo(() => {
-    let filteredNodes = [...nodes];
-    let filteredEdges = [...edges];
+    let filteredNodes = [...localNodes];
+    let filteredEdges = [...localEdges];
 
     // Apply node type filters
     if (filters.nodeTypes?.length > 0) {
@@ -101,18 +110,20 @@ const GraphCanvas = ({
 
   // Node rendering
   const renderNode = useCallback((node, ctx, globalScale) => {
-    if (!showLabels && !selectedNode && !hoverNode) {
-      // Simple circle for better performance when no interaction needed
-      const size = node.size || 8;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-      ctx.fillStyle = node.color || '#00ff41';
-      ctx.fill();
-      return;
+    // Highlight new nodes with a glow effect
+    if (newNodeIds.has(node.id)) {
+      ctx.shadowColor = '#00ff41';
+      ctx.shadowBlur = 15;
     }
-
-    return GraphNode({ node, ctx, globalScale, showLabels, selectedNode, hoverNode });
-  }, [showLabels, selectedNode, hoverNode]);
+    
+    const result = GraphNode({ node, ctx, globalScale, showLabels, selectedNode, hoverNode });
+    
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    
+    return result;
+  }, [showLabels, selectedNode, hoverNode, newNodeIds]);
 
   // Edge rendering
   const renderLink = useCallback((link, ctx) => {
@@ -244,6 +255,125 @@ const GraphCanvas = ({
       link.href = canvas.toDataURL();
       link.click();
     }
+  }, []);
+  
+  // Sync props to local state
+  useEffect(() => {
+    setLocalNodes(nodes);
+  }, [nodes]);
+  
+  useEffect(() => {
+    setLocalEdges(edges);
+  }, [edges]);
+  
+  // Handle live WebSocket updates
+  useEffect(() => {
+    const unsubscribeNodeAdded = webSocketService.onGraphNodeAdded((data) => {
+      const newNode = {
+        id: data.node_id,
+        type: data.node_type,
+        ...data.properties,
+        x: 0,  // Start at center
+        y: 0,
+        vx: 0,
+        vy: 0
+      };
+      
+      setLocalNodes(prev => [...prev, newNode]);
+      
+      // Mark as new for animation
+      setNewNodeIds(prev => new Set([...prev, data.node_id]));
+      
+      // Clear new marker after animation
+      setTimeout(() => {
+        setNewNodeIds(prev => {
+          const updated = new Set(prev);
+          updated.delete(data.node_id);
+          return updated;
+        });
+      }, 2000);
+    });
+    
+    const unsubscribeNodeUpdated = webSocketService.onGraphNodeUpdated((data) => {
+      setLocalNodes(prev => prev.map(node => 
+        node.id === data.node_id 
+          ? { ...node, ...data.changed_fields }
+          : node
+      ));
+    });
+    
+    const unsubscribeEdgeAdded = webSocketService.onGraphEdgeAdded((data) => {
+      const newEdge = {
+        source: data.source_id,
+        target: data.target_id,
+        type: data.relationship_type,
+        confidence: data.confidence
+      };
+      
+      setLocalEdges(prev => [...prev, newEdge]);
+      
+      // Mark as new for animation
+      const edgeId = `${data.source_id}-${data.target_id}-${data.relationship_type}`;
+      setNewEdgeIds(prev => new Set([...prev, edgeId]));
+      
+      // Clear new marker after animation
+      setTimeout(() => {
+        setNewEdgeIds(prev => {
+          const updated = new Set(prev);
+          updated.delete(edgeId);
+          return updated;
+        });
+      }, 2000);
+    });
+    
+    const unsubscribeBatchUpdate = webSocketService.onGraphBatchUpdate((data) => {
+      // Handle batch updates
+      if (data.nodes_added && data.nodes_added.length > 0) {
+        const newNodes = data.nodes_added.map(n => ({
+          id: n.node_id,
+          type: n.node_type,
+          ...n.properties,
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0
+        }));
+        
+        setLocalNodes(prev => [...prev, ...newNodes]);
+        setNewNodeIds(prev => new Set([
+          ...prev,
+          ...data.nodes_added.map(n => n.node_id)
+        ]));
+      }
+      
+      if (data.edges_added && data.edges_added.length > 0) {
+        const newEdges = data.edges_added.map(e => ({
+          source: e.source_id,
+          target: e.target_id,
+          type: e.relationship_type,
+          confidence: e.confidence
+        }));
+        
+        setLocalEdges(prev => [...prev, ...newEdges]);
+        setNewEdgeIds(prev => new Set([
+          ...prev,
+          ...data.edges_added.map(e => `${e.source_id}-${e.target_id}-${e.relationship_type}`)
+        ]));
+      }
+      
+      // Clear new markers after animation
+      setTimeout(() => {
+        setNewNodeIds(new Set());
+        setNewEdgeIds(new Set());
+      }, 2000);
+    });
+    
+    return () => {
+      unsubscribeNodeAdded();
+      unsubscribeNodeUpdated();
+      unsubscribeEdgeAdded();
+      unsubscribeBatchUpdate();
+    };
   }, []);
 
   // Update graph data when filtered data changes

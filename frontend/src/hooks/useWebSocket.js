@@ -15,9 +15,20 @@ export const useWebSocket = (autoConnect = true) => {
   const [events, setEvents] = useState([]);
   const [messageCount, setMessageCount] = useState(0);
   
+  // Real-time data state
+  const [graphUpdates, setGraphUpdates] = useState([]);
+  const [collectionProgress, setCollectionProgress] = useState({});
+  const [metrics, setMetrics] = useState({
+    graph: null,
+    risk: null,
+    anomalies: []
+  });
+  
   // Refs
   const eventBufferRef = useRef([]);
+  const graphUpdatesRef = useRef([]);
   const maxBufferSize = 100;
+  const maxGraphUpdates = 50;
   
   // Connect to WebSocket
   const connect = useCallback(() => {
@@ -170,6 +181,193 @@ export const useWebSocket = (autoConnect = true) => {
     };
   }, [autoConnect, connect]);
   
+  // Real-time graph updates
+  useEffect(() => {
+    const unsubscribeNodeAdded = webSocketService.onGraphNodeAdded((data) => {
+      const update = {
+        type: 'node_added',
+        data,
+        timestamp: new Date().toISOString()
+      };
+      graphUpdatesRef.current.push(update);
+      if (graphUpdatesRef.current.length > maxGraphUpdates) {
+        graphUpdatesRef.current.shift();
+      }
+      setGraphUpdates([...graphUpdatesRef.current]);
+    });
+    
+    const unsubscribeNodeUpdated = webSocketService.onGraphNodeUpdated((data) => {
+      const update = {
+        type: 'node_updated',
+        data,
+        timestamp: new Date().toISOString()
+      };
+      graphUpdatesRef.current.push(update);
+      if (graphUpdatesRef.current.length > maxGraphUpdates) {
+        graphUpdatesRef.current.shift();
+      }
+      setGraphUpdates([...graphUpdatesRef.current]);
+    });
+    
+    const unsubscribeEdgeAdded = webSocketService.onGraphEdgeAdded((data) => {
+      const update = {
+        type: 'edge_added',
+        data,
+        timestamp: new Date().toISOString()
+      };
+      graphUpdatesRef.current.push(update);
+      if (graphUpdatesRef.current.length > maxGraphUpdates) {
+        graphUpdatesRef.current.shift();
+      }
+      setGraphUpdates([...graphUpdatesRef.current]);
+    });
+    
+    const unsubscribeBatchUpdate = webSocketService.onGraphBatchUpdate((data) => {
+      const update = {
+        type: 'batch_update',
+        data,
+        timestamp: new Date().toISOString()
+      };
+      graphUpdatesRef.current.push(update);
+      if (graphUpdatesRef.current.length > maxGraphUpdates) {
+        graphUpdatesRef.current.shift();
+      }
+      setGraphUpdates([...graphUpdatesRef.current]);
+    });
+    
+    return () => {
+      unsubscribeNodeAdded();
+      unsubscribeNodeUpdated();
+      unsubscribeEdgeAdded();
+      unsubscribeBatchUpdate();
+    };
+  }, []);
+  
+  // Real-time collection progress
+  useEffect(() => {
+    const unsubscribeStarted = webSocketService.onCollectionStarted((data) => {
+      setCollectionProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          ...prev[data.collection_id],
+          status: 'started',
+          target: data.target,
+          collectorType: data.collector_type,
+          startTime: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeProgress = webSocketService.onCollectionProgress((data) => {
+      setCollectionProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          ...prev[data.collection_id],
+          status: data.status,
+          entitiesFound: data.entities_found,
+          relationshipsFound: data.relationships_found,
+          percentage: data.percentage,
+          lastUpdate: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeCompleted = webSocketService.onCollectionCompleted((data) => {
+      setCollectionProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          ...prev[data.collection_id],
+          status: 'completed',
+          totalEntities: data.total_entities,
+          totalRelationships: data.total_relationships,
+          duration: data.duration,
+          endTime: new Date()
+        }
+      }));
+      
+      // Remove completed tasks after 5 minutes
+      setTimeout(() => {
+        setCollectionProgress(prev => {
+          const updated = { ...prev };
+          delete updated[data.collection_id];
+          return updated;
+        });
+      }, 5 * 60 * 1000);
+    });
+    
+    const unsubscribeError = webSocketService.onCollectionError((data) => {
+      setCollectionProgress(prev => ({
+        ...prev,
+        [data.collection_id]: {
+          ...prev[data.collection_id],
+          status: 'error',
+          error: data.error_message,
+          errorType: data.error_type,
+          endTime: new Date()
+        }
+      }));
+      
+      // Remove error tasks after 2 minutes
+      setTimeout(() => {
+        setCollectionProgress(prev => {
+          const updated = { ...prev };
+          delete updated[data.collection_id];
+          return updated;
+        });
+      }, 2 * 60 * 1000);
+    });
+    
+    return () => {
+      unsubscribeStarted();
+      unsubscribeProgress();
+      unsubscribeCompleted();
+      unsubscribeError();
+    };
+  }, []);
+  
+  // Real-time metrics
+  useEffect(() => {
+    const unsubscribeGraphMetrics = webSocketService.onMetricsGraphUpdate((data) => {
+      setMetrics(prev => ({
+        ...prev,
+        graph: {
+          ...data,
+          timestamp: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeRiskMetrics = webSocketService.onMetricsRiskUpdate((data) => {
+      setMetrics(prev => ({
+        ...prev,
+        risk: {
+          ...data,
+          timestamp: new Date()
+        }
+      }));
+    });
+    
+    const unsubscribeAnomalyDetected = webSocketService.onMetricsAnomalyDetected((data) => {
+      setMetrics(prev => ({
+        ...prev,
+        anomalies: [
+          ...data,
+          {
+            ...data,
+            timestamp: new Date()
+          },
+          ...prev.anomalies.slice(-9) // Keep last 10 anomalies
+        ]
+      }));
+    });
+    
+    return () => {
+      unsubscribeGraphMetrics();
+      unsubscribeRiskMetrics();
+      unsubscribeAnomalyDetected();
+    };
+  }, []);
+  
   // Heartbeat monitoring
   useEffect(() => {
     let heartbeatInterval;
@@ -215,6 +413,11 @@ export const useWebSocket = (autoConnect = true) => {
     // State
     ...connectionStatus,
     events,
+    
+    // Real-time data
+    graphUpdates,
+    collectionProgress,
+    metrics,
     
     // Actions
     connect,
