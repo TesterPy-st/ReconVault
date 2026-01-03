@@ -62,6 +62,24 @@ def get_db() -> Generator[Session, None, None]:
         logger.debug("Database session closed")
 
 
+def get_db_session() -> Generator[Session, None, None]:
+    """
+    Get database session for use in Celery tasks and background jobs.
+    
+    Yields:
+        Session: SQLAlchemy database session
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception as e:
+        logger.error(f"Database session error: {e}")
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def init_db() -> None:
     """
     Initialize database tables.

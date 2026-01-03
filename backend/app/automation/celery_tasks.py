@@ -562,3 +562,138 @@ def queue_multiple_collections(
             task_ids.append(task_id)
 
     return task_ids
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.calculate_risks_async")
+def calculate_risks_async(self: Task, entity_ids: List[int]) -> Dict[str, Any]:
+    """
+    Calculate risk scores for entities asynchronously.
+
+    Args:
+        entity_ids: List of entity IDs to process
+
+    Returns:
+        Calculation results
+    """
+    logger.info(f"Async risk calculation started for {len(entity_ids)} entities")
+
+    try:
+        from app.database import get_db_session
+        from app.models.entity import Entity
+        from app.risk_engine.risk_analyzer import RiskAnalyzer
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Initialize risk analyzer
+            analyzer = RiskAnalyzer(db=db)
+
+            # Process entities
+            processed = 0
+            errors = []
+
+            for entity_id in entity_ids:
+                try:
+                    entity = db.query(Entity).filter(Entity.id == entity_id).first()
+
+                    if entity:
+                        entity_dict = entity.to_dict()
+                        risk_assessment = analyzer.calculate_entity_risk(entity_dict)
+
+                        # Update entity risk score
+                        entity.risk_score = risk_assessment["risk_score"]
+                        processed += 1
+                    else:
+                        errors.append(f"Entity {entity_id} not found")
+
+                except Exception as e:
+                    logger.error(f"Error processing entity {entity_id}: {e}")
+                    errors.append(f"Entity {entity_id}: {str(e)}")
+
+            # Commit changes
+            db.commit()
+
+            logger.info(f"Async risk calculation completed: {processed} entities processed")
+
+            return {
+                "success": True,
+                "entities_processed": processed,
+                "total_entities": len(entity_ids),
+                "errors": errors,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Async risk calculation failed: {e}")
+        return {
+            "success": False,
+            "errors": [str(e)],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="app.automation.celery_tasks.periodic_risk_update")
+def periodic_risk_update(self: Task) -> Dict[str, Any]:
+    """
+    Periodic task to update risk scores for all active entities.
+
+    Returns:
+        Update results
+    """
+    logger.info("Starting periodic risk update")
+
+    try:
+        from app.database import get_db_session
+        from app.models.entity import Entity
+        from app.risk_engine.risk_analyzer import RiskAnalyzer
+
+        # Get database session
+        db = next(get_db_session())
+
+        try:
+            # Get all active entities
+            entities = db.query(Entity).filter(Entity.is_active == True).all()
+
+            logger.info(f"Updating risks for {len(entities)} entities")
+
+            # Initialize risk analyzer
+            analyzer = RiskAnalyzer(db=db)
+
+            # Process entities in batches
+            batch_size = 100
+            processed = 0
+
+            for i in range(0, len(entities), batch_size):
+                batch = entities[i : i + batch_size]
+
+                for entity in batch:
+                    try:
+                        entity_dict = entity.to_dict()
+                        risk_assessment = analyzer.calculate_entity_risk(entity_dict)
+                        entity.risk_score = risk_assessment["risk_score"]
+                        processed += 1
+                    except Exception as e:
+                        logger.error(f"Error processing entity {entity.id}: {e}")
+
+                # Commit batch
+                db.commit()
+                logger.info(f"Processed {processed}/{len(entities)} entities")
+
+            logger.info(f"Periodic risk update completed: {processed} entities updated")
+
+            return {
+                "success": True,
+                "entities_updated": processed,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.exception(f"Periodic risk update failed: {e}")
+        return {"success": False, "errors": [str(e)], "timestamp": datetime.utcnow().isoformat()}
