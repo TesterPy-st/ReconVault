@@ -21,6 +21,14 @@ wheels/
 *.egg
 MANIFEST
 
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+backend/venv/
+frontend/venv/
+
 # Node.js
 node_modules/
 npm-debug.log*
