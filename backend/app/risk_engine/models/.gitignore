@@ -1,0 +1,9 @@
+# Ignore trained model files
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# Keep directory structure
+!.gitignore
