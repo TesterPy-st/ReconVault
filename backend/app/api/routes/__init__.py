@@ -9,7 +9,7 @@ ReconVault intelligence system.
 from fastapi import APIRouter
 
 # Import route modules
-from . import health, targets, entities, graph, audit
+from . import audit, collection, entities, graph, health, targets
 
 # Create main API router
 api_router = APIRouter(prefix="/api")
@@ -20,6 +20,7 @@ api_router.include_router(targets.router, prefix="/targets", tags=["targets"])
 api_router.include_router(entities.router, prefix="/entities", tags=["entities"])
 api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(collection.router, tags=["collection"])
 
 
 __all__ = ["api_router"]
