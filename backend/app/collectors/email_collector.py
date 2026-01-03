@@ -343,19 +343,17 @@ class EmailCollector(BaseCollector):
                 domain.lower(), {"type": "custom", "provider": domain}
             )
 
-            # Update metadata
-            # Find the EMAIL entity and add provider info
-            for entity in entities:
-                if (
-                    entity.get("entity_type") == "EMAIL"
-                    and entity.get("value") == email_address
-                ):
-                    entity["metadata"].update(
-                        {
-                            "provider_type": provider_info["type"],
-                            "provider": provider_info["provider"],
-                        }
-                    )
+            # Create EMAIL entity with provider info
+            entity = self._create_entity(
+                entity_type="EMAIL",
+                value=email_address,
+                risk_level=RiskLevel.INFO,
+                metadata={
+                    "provider_type": provider_info["type"],
+                    "provider": provider_info["provider"],
+                },
+            )
+            entities.append(entity)
 
             logger.info(
                 f"Email provider for {email_address}: {provider_info['provider']}"
