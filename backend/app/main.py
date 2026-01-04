@@ -308,13 +308,28 @@ async def readyz():
     try:
         # Check if database is ready
         db_ready = test_db_connection()
-        
+
         if db_ready:
             return {"status": "ready", "database": "connected"}
         else:
             raise HTTPException(status_code=503, detail="Database not ready")
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Service not ready: {str(e)}")
+
+# Startup check for Docker
+@app.get("/startupz")
+async def startupz():
+    """
+    Kubernetes startup check endpoint
+    """
+    try:
+        db_ready = test_db_connection()
+        if db_ready:
+            return {"status": "startup_complete", "database": "connected"}
+        else:
+            return {"status": "starting", "database": "not_ready"}
+    except Exception as e:
+        return {"status": "starting", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
