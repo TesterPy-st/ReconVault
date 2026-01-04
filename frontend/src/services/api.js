@@ -279,6 +279,63 @@ export const collectionAPI = {
   resumeCollection: async (taskId) => {
     const response = await apiClient.post(`/collection/tasks/${taskId}/resume`);
     return response.data;
+  },
+
+  // Get recent collections
+  getRecentCollections: async (limit = 10) => {
+    const response = await apiClient.get(`/collection/recent?limit=${limit}`);
+    return response.data;
+  }
+};
+
+// Reports API methods
+export const reportsAPI = {
+  // Generate report
+  generateReport: async (format, template, options = {}) => {
+    const params = new URLSearchParams({
+      format,
+      template,
+      ...options
+    });
+    const response = await apiClient.post(`/reports/generate?${params}`, options.filters || {});
+    return response.data;
+  },
+
+  // List reports
+  listReports: async (limit = 50, offset = 0) => {
+    const response = await apiClient.get(`/reports?limit=${limit}&offset=${offset}`);
+    return response.data;
+  },
+
+  // Get report status
+  getReportStatus: async (reportId) => {
+    const response = await apiClient.get(`/reports/${reportId}/status`);
+    return response.data;
+  },
+
+  // List templates
+  listTemplates: async () => {
+    const response = await apiClient.get('/reports/templates');
+    return response.data;
+  },
+
+  // List formats
+  listFormats: async () => {
+    const response = await apiClient.get('/reports/formats');
+    return response.data;
+  },
+
+  // Preview report
+  previewReport: async (template, filters = {}) => {
+    const params = new URLSearchParams({ template });
+    const response = await apiClient.post(`/reports/preview?${params}`, filters);
+    return response.data;
+  },
+
+  // Delete report
+  deleteReport: async (reportId) => {
+    const response = await apiClient.delete(`/reports/${reportId}`);
+    return response.data;
   }
 };
 
@@ -420,3 +477,75 @@ export const apiUtils = {
 
 // Export the main API client
 export default apiClient;
+// Compliance API methods
+export const complianceAPI = {
+  // Get compliance status
+  getComplianceStatus: async () => {
+    const response = await apiClient.get('/compliance/status');
+    return response.data;
+  },
+
+  // Get compliance violations
+  getComplianceViolations: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const response = await apiClient.get(`/compliance/violations?${params}`);
+    return response.data;
+  },
+
+  // Get audit logs
+  getAuditLogs: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const response = await apiClient.get(`/compliance/logs?${params}`);
+    return response.data;
+  },
+
+  // Get rate limit status
+  getRateLimitStatus: async () => {
+    const response = await apiClient.get('/compliance/rate-limits');
+    return response.data;
+  }
+};
+
+// Risk API methods
+export const riskAPI = {
+  // Get risk scores
+  getRiskScores: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const response = await apiClient.get(`/risk/scores?${params}`);
+    return response.data;
+  },
+
+  // Get entity risk
+  getEntityRisk: async (entityId) => {
+    const response = await apiClient.get(`/risk/entities/${entityId}`);
+    return response.data;
+  },
+
+  // Analyze risk
+  analyzeRisk: async (options = {}) => {
+    const response = await apiClient.post('/risk/analyze', options);
+    return response.data;
+  }
+};
+
+// Anomalies API methods
+export const anomaliesAPI = {
+  // List anomalies
+  getAnomalies: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const response = await apiClient.get(`/ai/anomalies?${params}`);
+    return response.data;
+  },
+
+  // Get anomaly details
+  getAnomalyDetails: async (anomalyId) => {
+    const response = await apiClient.get(`/ai/anomalies/${anomalyId}`);
+    return response.data;
+  },
+
+  // Analyze for anomalies
+  analyzeAnomalies: async (options = {}) => {
+    const response = await apiClient.post('/ai/analyze', options);
+    return response.data;
+  }
+};

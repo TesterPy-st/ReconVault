@@ -1,0 +1,293 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Job 1: Lint and check code style
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache Node dependencies
+      uses: actions/cache@v3
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install Python dependencies
+      run: |
+        cd backend
+        pip install black flake8 isort mypy
+        pip install -r requirements.txt
+
+    - name: Install Node dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Lint backend
+      run: |
+        cd backend
+        black --check app/
+        flake8 app/ --max-line-length=88 --exclude=.git,__pycache__,venv
+        isort --check-only app/
+
+    - name: Lint frontend
+      run: |
+        cd frontend
+        npm run lint
+
+  # Job 2: Run tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: reconvault_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install Python dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Install Node dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        pytest --cov=app --cov-report=xml --cov-report=term
+      env:
+        DATABASE_URL: postgresql://postgres:testpass@localhost:5432/reconvault_test
+        REDIS_URL: redis://localhost:6379/0
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: |
+          backend/coverage.xml
+          frontend/coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
+
+  # Job 3: Build Docker images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Build backend image
+      run: |
+        docker build \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+          -t reconvault/backend:${{ github.sha }} \
+          -t reconvault/backend:latest \
+          ./backend
+
+    - name: Build frontend image
+      run: |
+        docker build \
+          --cache-from type=local,src=/tmp/.buildx-cache \
+          --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+          -t reconvault/frontend:${{ github.sha }} \
+          -t reconvault/frontend:latest \
+          ./frontend
+
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Push images to Docker Hub
+      if: github.event_name != 'pull_request'
+      run: |
+        docker push reconvault/backend:${{ github.sha }}
+        docker push reconvault/backend:latest
+        docker push reconvault/frontend:${{ github.sha }}
+        docker push reconvault/frontend:latest
+
+  # Job 4: Integration tests
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Compose
+      run: |
+        docker-compose --version
+
+    - name: Start services
+      run: |
+        docker-compose up -d
+
+    - name: Wait for services
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+
+    - name: Check service health
+      run: |
+        curl -f http://localhost:8000/health || exit 1
+        curl -f http://localhost:5173/ || exit 1
+
+    - name: Run integration tests
+      run: |
+        docker-compose exec backend pytest tests/integration/ -v
+
+    - name: Collect logs on failure
+      if: failure()
+      run: |
+        docker-compose logs > integration-test-logs.txt
+
+    - name: Upload logs
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: integration-logs
+        path: integration-test-logs.txt
+
+    - name: Stop services
+      if: always()
+      run: |
+        docker-compose down -v
+
+  # Job 5: Deploy to staging (manual)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.reconvault.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add deployment commands here
+
+  # Job 6: Deploy to production (manual approval)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://reconvault.com
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add deployment commands here
