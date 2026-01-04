@@ -292,15 +292,17 @@ async def shutdown_event():
     logger.info("Graceful shutdown complete")
 
 # Health check for Docker
-@app.get("/healthz")
+@app.get("/healthz", tags=["system"])
+@app.get("/health/live", tags=["system"])
 async def healthz():
     """
-    Kubernetes health check endpoint
+    Live check endpoint
     """
     return {"status": "ok"}
 
 # Readiness check for Docker
-@app.get("/readyz")
+@app.get("/readyz", tags=["system"])
+@app.get("/health/ready", tags=["system"])
 async def readyz():
     """
     Kubernetes readiness check endpoint

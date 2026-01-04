@@ -11,8 +11,11 @@ from fastapi import APIRouter
 # Import route modules
 from . import anomalies, audit, collection, compliance, entities, graph, health, reports, risk, targets
 
+# Import configuration
+from app.config import settings
+
 # Create main API router
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter(prefix=settings.API_PREFIX)
 
 # Include all route routers
 api_router.include_router(health.router, prefix="/health", tags=["health"])

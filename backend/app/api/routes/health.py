@@ -43,6 +43,7 @@ async def basic_health_check():
 
 
 @router.get("/db", response_model=Dict[str, Any])
+@router.get("/database", response_model=Dict[str, Any])
 async def database_health_check(db: Session = Depends(get_db)):
     """
     Database health check endpoint.
@@ -175,7 +176,37 @@ async def graph_health_check():
         )
 
 
+@router.get("/redis", response_model=Dict[str, Any])
+async def redis_health_check():
+    """
+    Redis health check endpoint.
+    
+    Returns:
+        Dict[str, Any]: Redis health information
+    """
+    logger.info("Redis health check requested")
+    
+    try:
+        from app.database import redis_client
+        ping_success = redis_client.ping()
+        
+        return {
+            "status": "healthy" if ping_success else "unhealthy",
+            "database": "redis",
+            "connection_test": ping_success,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+
 @router.get("/full", response_model=Dict[str, Any])
+@router.get("/detailed", response_model=Dict[str, Any])
 async def full_health_check(db: Session = Depends(get_db)):
     """
     Comprehensive health check endpoint.
