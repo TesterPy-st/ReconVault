@@ -29,13 +29,13 @@ Before installing ReconVault, ensure you have:
 
 3. **Start All Services**
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 4. **Verify Installation**
    ```bash
    # Check all services are running
-   docker-compose ps
+   docker compose ps
 
    # Test backend health
    curl http://localhost:8000/health
@@ -60,7 +60,7 @@ npm install
 
 **Databases (via Docker):**
 ```bash
-docker-compose up -d postgres neo4j redis
+docker compose up -d postgres neo4j redis
 ```
 
 ## Accessing the Application
@@ -202,14 +202,14 @@ Available collectors:
 
 ```bash
 # Stop all services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes (deletes data)
-docker-compose down -v
+docker compose down -v
 
 # View logs
-docker-compose logs backend
-docker-compose logs frontend
+docker compose logs backend
+docker compose logs frontend
 ```
 
 ## Troubleshooting
@@ -224,18 +224,18 @@ netstat -tuln | grep -E '8000|5173|7474|5432|6379'
 df -h
 
 # View service logs
-docker-compose logs [service-name]
+docker compose logs [service-name]
 ```
 
 ### Database Connection Issues
 
 ```bash
 # Restart databases
-docker-compose restart postgres neo4j redis
+docker compose restart postgres neo4j redis
 
 # Check database is ready
-docker-compose exec postgres pg_isready
-docker-compose exec neo4j cypher-shell "RETURN 1"
+docker compose exec postgres pg_isready
+docker compose exec neo4j cypher-shell "RETURN 1"
 ```
 
 ### Frontend Build Errors

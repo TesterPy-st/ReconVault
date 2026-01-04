@@ -7,7 +7,7 @@ for environment variable management and validation.
 
 from typing import List, Optional
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+from pydantic import AnyHttpUrl, validator, Field
 import os
 
 
@@ -40,26 +40,47 @@ class Settings(BaseSettings):
         return ["*"]
     
     # Database Settings
-    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_USER: str = "reconvault"
     POSTGRES_PASSWORD: str = "reconvault"
     POSTGRES_DB: str = "reconvault"
     POSTGRES_PORT: int = 5432
+    DATABASE_URL: Optional[str] = None
     
     # Database URL construction
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:
         """Construct PostgreSQL database URL"""
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
     # Neo4j Settings
-    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_HOST: str = "localhost"
+    NEO4J_BOLT_PORT: int = 7687
+    NEO4J_HTTP_PORT: int = 7474
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "reconvault"
-    NEO4J_DATABASE: str = "reconvault"
+    NEO4J_DATABASE: str = "neo4j"
+    
+    @property
+    def NEO4J_URI(self) -> str:
+        """Construct Neo4j Bolt URI"""
+        return f"bolt://{self.NEO4J_HOST}:{self.NEO4J_BOLT_PORT}"
     
     # Redis Settings (for caching and sessions)
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: Optional[str] = None
+    REDIS_URL_OVERRIDE: Optional[str] = Field(None, env="REDIS_URL")
+    
+    @property
+    def REDIS_URL(self) -> str:
+        """Construct Redis URL"""
+        if self.REDIS_URL_OVERRIDE:
+            return self.REDIS_URL_OVERRIDE
+        auth = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/0"
     
     # Security Settings
     SECRET_KEY: str = "your-secret-key-change-in-production"
