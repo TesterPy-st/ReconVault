@@ -8,18 +8,13 @@ import os
 
 from celery import Celery
 from celery.schedules import crontab
-
-# Redis configuration
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_DB = os.getenv("REDIS_DB", "0")
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+from app.config import settings
 
 # Create Celery app
 celery_app = Celery(
     "reconvault",
-    broker=REDIS_URL,
-    backend=REDIS_URL,
+    broker=settings.REDIS_URL,
+    backend=settings.REDIS_URL,
     include=[
         "app.automation.celery_tasks",
     ],

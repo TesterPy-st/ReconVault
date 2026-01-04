@@ -11,10 +11,14 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 from typing import Generator
 import logging
+import redis
 from .config import settings
 
 # Configure logging
 logger = logging.getLogger("reconvault.database")
+
+# Create Redis client
+redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 # Create SQLAlchemy engine with connection pooling
 engine = create_engine(

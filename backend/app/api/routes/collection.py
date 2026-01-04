@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from app.services.collection_pipeline_service import (
     CollectionPipelineService, TaskStatus)
 
-router = APIRouter(prefix="/api/v1/collection", tags=["collection"])
+router = APIRouter(prefix="/collection", tags=["collection"])
 
 # Global pipeline service instance
 pipeline_service = CollectionPipelineService()

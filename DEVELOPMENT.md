@@ -18,10 +18,10 @@ cp .env.example .env
 # Edit .env with your settings
 
 # Start all services
-docker-compose up -d --build
+docker compose up -d --build
 
 # Check services
-docker-compose ps
+docker compose ps
 ```
 
 ### Local Development Setup
@@ -111,21 +111,21 @@ npm run build                  # Production build
 ### Docker Commands
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs backend
-docker-compose logs frontend
+docker compose logs backend
+docker compose logs frontend
 
 # Stop services
-docker-compose down
+docker compose down
 
 # Rebuild and restart
-docker-compose up -d --build
+docker compose up -d --build
 
 # Enter container
-docker-compose exec backend bash
-docker-compose exec frontend sh
+docker compose exec backend bash
+docker compose exec frontend sh
 ```
 
 ## Code Standards
@@ -280,13 +280,13 @@ pip install -r requirements.txt
 If database connection fails:
 ```bash
 # Check containers
-docker-compose ps
+docker compose ps
 
 # Restart database
-docker-compose restart postgres neo4j redis
+docker compose restart postgres neo4j redis
 
 # Check logs
-docker-compose logs postgres
+docker compose logs postgres
 ```
 
 ### Frontend Build Errors
