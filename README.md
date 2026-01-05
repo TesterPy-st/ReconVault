@@ -67,10 +67,6 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for development setup, coding standards, an
 - D3.js + react-force-graph
 - WebSocket real-time updates
 
-## Contributing
-
-We welcome contributions! Please see [docs/CONTRIBUTORS.md](docs/CONTRIBUTORS.md) for guidelines.
-
 ### Development Workflow
 
 1. Fork the repository
@@ -88,13 +84,6 @@ We welcome contributions! Please see [docs/CONTRIBUTORS.md](docs/CONTRIBUTORS.md
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- [Documentation](docs/INDEX.md)
-- [GitHub Issues](../../issues)
-- [GitHub Discussions](../../discussions)
-
 ---
 
 Built with ❤️ by the ReconVault Team
