@@ -14,10 +14,6 @@ ReconVault is a modern, modular cyber reconnaissance and OSINT platform built fo
 - **Risk assessment** - Automated exposure analysis with multi-factor risk scoring
 - **Export & reporting** - Multiple formats (JSON, CSV, GraphML) with custom reports
 
-## Quick Start
-
-See [docs/QUICK_START.md](docs/QUICK_START.md) for detailed installation and setup instructions.
-
 ### Prerequisites
 
 - Docker 20.10+ and Docker Compose 2.0+
@@ -50,11 +46,8 @@ All major features implemented and tested. Ready for deployment with minor polis
 
 ## Documentation
 
-- [Quick Start](docs/QUICK_START.md) - Installation and basic usage
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [API Reference](docs/API.md) - API endpoints and examples
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
-- [Task Status](docs/INDEX.md) - Project progress and task tracking
 
 ## Development
 
