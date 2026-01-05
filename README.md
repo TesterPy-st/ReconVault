@@ -24,7 +24,7 @@ ReconVault is a modern, modular cyber reconnaissance and OSINT platform built fo
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/TesterPy-st/ReconVault.git
 cd reconvault
 cp .env.example .env
 
