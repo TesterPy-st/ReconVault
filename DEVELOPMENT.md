@@ -10,7 +10,7 @@
 ### Quick Setup (Docker)
 ```bash
 # Clone repository
-git clone <repository-url>](https://github.com/TesterPy-st/ReconVault.git
+git clone https://github.com/TesterPy-st/ReconVault.git
 cd reconvault
 
 # Configure environment
