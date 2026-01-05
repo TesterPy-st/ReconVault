@@ -297,8 +297,5 @@ npm run dev
 ```
 
 ## Additional Resources
-
-- [Quick Start Guide](docs/QUICK_START.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [API Reference](docs/API.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
