@@ -39,7 +39,6 @@ yarn-error.log*
 
 # Vite
 dist/
-index.html
 
 # Docker
 docker-compose.override.yml
