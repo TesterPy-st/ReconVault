@@ -29,6 +29,33 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          graph: ['react-force-graph']
+        }
+      },
+      external: [],
+      onwarn(warning, warn) {
+        // Skip specific warnings for VR/AR dependencies
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('aframe')) {
+          return;
+        }
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('aframe')) {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  },
+  optimizeDeps: {
+    exclude: [
+      '3d-force-graph-vr',
+      '3d-force-graph-ar',
+      'aframe-extras',
+      'aframe'
+    ]
   }
 })
