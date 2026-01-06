@@ -37,13 +37,30 @@ export default defineConfig({
           graph: ['react-force-graph']
         }
       },
-      external: [],
+      external: [
+        '3d-force-graph-vr',
+        '3d-force-graph-ar', 
+        'aframe-extras',
+        'aframe'
+      ],
       onwarn(warning, warn) {
         // Skip specific warnings for VR/AR dependencies
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('aframe')) {
           return;
         }
         if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('aframe')) {
+          return;
+        }
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('3d-force-graph-vr')) {
+          return;
+        }
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT' && warning.message.includes('3d-force-graph-ar')) {
+          return;
+        }
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('3d-force-graph-vr')) {
+          return;
+        }
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('3d-force-graph-ar')) {
           return;
         }
         warn(warning);
