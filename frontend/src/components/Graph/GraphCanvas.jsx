@@ -1,9 +1,7 @@
 // Main Graph Canvas Component using react-force-graph
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import { ForceGraph2D } from 'react-force-graph';
 import { motion } from 'framer-motion';
-import { getEntityTypeConfig, getRiskLevelConfig } from '../../utils/colorMap';
-import { formatEntityValue } from '../../utils/formatters';
 import GraphNode from './GraphNode';
 import GraphEdge from './GraphEdge';
 import GraphControls from './GraphControls';
@@ -337,7 +335,7 @@ const GraphCanvas = ({
       )}
 
       {/* Performance Info */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <div className="absolute bottom-4 left-4 bg-cyber-dark bg-opacity-90 p-2 rounded text-xs font-mono text-cyber-gray">
           <div>Nodes: {filteredData.nodes.length}</div>
           <div>Edges: {filteredData.links.length}</div>
