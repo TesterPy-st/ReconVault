@@ -1,0 +1,11 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm.
+
+> reconvault-frontend@0.1.0 dev
+> vite
+
+
+  VITE v7.3.0  ready in 353 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://10.16.97.15:5173/
+  ➜  press h + enter to show help
