@@ -181,7 +181,7 @@ export const useGraph = (initialFilters = {}) => {
       graphService.onEntityUpdated(entity); // Trigger service event
     });
     
-    const unsubscribeWSEntityDeleted = ({ id }) => {
+    const unsubscribeWSEntityDeleted = webSocketService.onEntityDeleted(({ id }) => {
       graphService.onEntityDeleted({ id }); // Trigger service event
     });
     
@@ -189,7 +189,7 @@ export const useGraph = (initialFilters = {}) => {
       graphService.onRelationshipCreated(relationship); // Trigger service event
     });
     
-    const unsubscribeWSRelationshipDeleted = (relationship) => {
+    const unsubscribeWSRelationshipDeleted = webSocketService.onRelationshipDeleted((relationship) => {
       graphService.onRelationshipDeleted(relationship); // Trigger service event
     });
     

@@ -1,6 +1,6 @@
 // Main Graph Canvas Component using react-force-graph
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import { ForceGraph2D } from 'react-force-graph';
 import { motion } from 'framer-motion';
 import { getEntityTypeConfig, getRiskLevelConfig } from '../../utils/colorMap';
 import { formatEntityValue } from '../../utils/formatters';
