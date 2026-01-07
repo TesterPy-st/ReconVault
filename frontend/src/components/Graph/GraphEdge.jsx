@@ -1,5 +1,4 @@
 // Graph Edge Renderer Component
-import React from 'react';
 import { getRelationshipTypeConfig } from '../../utils/colorMap';
 import { formatConfidence } from '../../utils/formatters';
 

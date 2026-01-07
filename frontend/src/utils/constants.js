@@ -10,8 +10,9 @@ export const API_CONFIG = {
 
 // WebSocket Configuration
 export const WEBSOCKET_CONFIG = {
-  URL: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws',
-  PATH: '/ws/graph',
+  // Base origin only. Path is appended below.
+  URL: import.meta.env.VITE_WS_URL || 'ws://localhost:8000',
+  PATH: '/ws/intelligence',
   RECONNECT_INTERVAL: 5000,
   MAX_RECONNECT_ATTEMPTS: 10,
   HEARTBEAT_INTERVAL: 30000

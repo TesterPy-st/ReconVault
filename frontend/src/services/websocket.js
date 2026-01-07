@@ -28,9 +28,21 @@ class WebSocketService {
     // URL construction
     this.baseUrl = WEBSOCKET_CONFIG.URL;
     this.path = WEBSOCKET_CONFIG.PATH;
-    this.fullUrl = `${this.baseUrl}${this.path}`;
-    
+    this.fullUrl = WebSocketService.joinUrl(this.baseUrl, this.path);
+
     console.log('[WebSocket] Service initialized:', this.fullUrl);
+  }
+
+  static joinUrl(baseUrl, path) {
+    const base = String(baseUrl || '').replace(/\/+$/, '');
+    const p = String(path || '').startsWith('/') ? String(path || '') : `/${path}`;
+
+    // Common misconfiguration: both baseUrl and path include the '/ws' prefix.
+    if (base.endsWith('/ws') && p.startsWith('/ws/')) {
+      return `${base}${p.slice('/ws'.length)}`;
+    }
+
+    return `${base}${p}`;
   }
 
   // Connect to WebSocket
