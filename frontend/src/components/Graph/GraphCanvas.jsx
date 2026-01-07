@@ -1,9 +1,7 @@
 // Main Graph Canvas Component using react-force-graph
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { ForceGraph2D } from 'react-force-graph';
+import { ForceGraph2D } from '../../vendor/forceGraph2D';
 import { motion } from 'framer-motion';
-import { getEntityTypeConfig, getRiskLevelConfig } from '../../utils/colorMap';
-import { formatEntityValue } from '../../utils/formatters';
 import GraphNode from './GraphNode';
 import GraphEdge from './GraphEdge';
 import GraphControls from './GraphControls';
@@ -29,7 +27,6 @@ const GraphCanvas = ({
   const fgRef = useRef();
   const [graphReady, setGraphReady] = useState(false);
   const [simulationRunning, setSimulationRunning] = useState(true);
-  const [zoomToFit, setZoomToFit] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showEdges, setShowEdges] = useState(true);
   const [highlightNodes, setHighlightNodes] = useState(new Set());
@@ -87,17 +84,18 @@ const GraphCanvas = ({
   // Handle graph ready
   const handleGraphReady = useCallback(() => {
     setGraphReady(true);
-    if (fgRef.current) {
-      onGraphReady(fgRef.current);
-      
-      // Initial zoom to fit
-      if (zoomToFit && filteredData.nodes.length > 0) {
-        setTimeout(() => {
-          fgRef.current.zoomToFit(400, 50);
-        }, 1000);
-      }
+
+    if (!fgRef.current) return;
+
+    onGraphReady(fgRef.current);
+
+    // Initial zoom to fit
+    if (filteredData.nodes.length > 0) {
+      setTimeout(() => {
+        fgRef.current?.zoomToFit?.(400, 50);
+      }, 750);
     }
-  }, [onGraphReady, zoomToFit, filteredData.nodes.length]);
+  }, [onGraphReady, filteredData.nodes.length]);
 
   // Node rendering
   const renderNode = useCallback((node, ctx, globalScale) => {
@@ -111,8 +109,16 @@ const GraphCanvas = ({
       return;
     }
 
-    return GraphNode({ node, ctx, globalScale, showLabels, selectedNode, hoverNode });
-  }, [showLabels, selectedNode, hoverNode]);
+    return GraphNode({
+      node,
+      ctx,
+      globalScale,
+      showLabels,
+      selectedNode,
+      hoverNode,
+      highlightNodes
+    });
+  }, [showLabels, selectedNode, hoverNode, highlightNodes]);
 
   // Edge rendering
   const renderLink = useCallback((link, ctx) => {
@@ -188,6 +194,11 @@ const GraphCanvas = ({
     }
   }, [selectedEdge, onEdgeSelect]);
 
+  // Edge hover handler
+  const handleLinkHover = useCallback((link) => {
+    onEdgeHover(link);
+  }, [onEdgeHover]);
+
   // Background click handler
   const handleBackgroundClick = useCallback(() => {
     onNodeSelect(null);
@@ -236,25 +247,14 @@ const GraphCanvas = ({
   }, [showEdges]);
 
   const exportGraph = useCallback(() => {
-    if (fgRef.current) {
-      // Create download link for canvas
-      const canvas = fgRef.current.canvas;
-      const link = document.createElement('a');
-      link.download = `reconvault-graph-${new Date().toISOString().split('T')[0]}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    }
-  }, []);
+    const canvas = fgRef.current?.canvas?.();
+    if (!canvas) return;
 
-  // Update graph data when filtered data changes
-  useEffect(() => {
-    if (fgRef.current && graphReady) {
-      fgRef.current.graphData({
-        nodes: filteredData.nodes,
-        links: filteredData.links
-      });
-    }
-  }, [filteredData, graphReady]);
+    const link = document.createElement('a');
+    link.download = `reconvault-graph-${new Date().toISOString().split('T')[0]}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, []);
 
   // Force simulation configuration
   const d3ForceConfig = useMemo(() => ({
@@ -273,6 +273,34 @@ const GraphCanvas = ({
     }
   }), [enablePhysics]);
 
+  useEffect(() => {
+    if (!graphReady || !fgRef.current) return;
+
+    const { link, charge, collision } = d3ForceConfig;
+
+    const linkForce = fgRef.current.d3Force?.('link');
+    if (linkForce) {
+      if (linkForce.distance instanceof Function && link?.distance !== undefined) {
+        linkForce.distance(link.distance);
+      }
+      if (linkForce.strength instanceof Function && link?.strength !== undefined) {
+        linkForce.strength(link.strength);
+      }
+    }
+
+    const chargeForce = fgRef.current.d3Force?.('charge');
+    if (chargeForce?.strength instanceof Function && charge?.strength !== undefined) {
+      chargeForce.strength(charge.strength);
+    }
+
+    const collideForce = fgRef.current.d3Force?.('collide');
+    if (collideForce?.radius instanceof Function && collision?.radius !== undefined) {
+      collideForce.radius(collision.radius);
+    }
+
+    fgRef.current.d3ReheatSimulation?.();
+  }, [graphReady, d3ForceConfig]);
+
   return (
     <div className={`relative bg-cyber-black ${className}`}>
       {/* Graph Canvas */}
@@ -285,10 +313,10 @@ const GraphCanvas = ({
         linkCanvasObject={renderLink}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
+        onLinkHover={handleLinkHover}
         onLinkClick={handleLinkClick}
         onBackgroundClick={handleBackgroundClick}
         onEngineStop={handleGraphReady}
-        d3ForceConfig={d3ForceConfig}
         nodeRelSize={4}
         linkColor={() => '#3a3f5a'}
         linkWidth={1}
@@ -299,9 +327,6 @@ const GraphCanvas = ({
         enableZoomInteraction={true}
         enablePanInteraction={true}
         cooldownTicks={100}
-        onZoom={(event) => {
-          // Handle zoom events if needed
-        }}
         {...props}
       />
 

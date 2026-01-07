@@ -1,5 +1,4 @@
 // Graph Node Renderer Component
-import React from 'react';
 import { getEntityTypeConfig, getRiskLevelConfig } from '../../utils/colorMap';
 
 const GraphNode = ({ 
@@ -8,7 +7,8 @@ const GraphNode = ({
   globalScale, 
   showLabels = true, 
   selectedNode = null, 
-  hoverNode = null 
+  hoverNode = null,
+  highlightNodes = new Set()
 }) => {
   if (!node) return null;
 
@@ -20,19 +20,21 @@ const GraphNode = ({
   const size = node.size || 8;
   const isSelected = selectedNode?.id === node.id;
   const isHovered = hoverNode?.id === node.id;
+  const isHighlighted = highlightNodes.has(node.id);
   
   // Node colors
   const nodeColor = node.color || riskConfig.color;
-  const borderColor = isSelected ? '#00d9ff' : nodeColor;
-  const glowColor = riskConfig.glow;
+  const borderColor = isSelected
+    ? '#00d9ff'
+    : (isHighlighted ? '#00ff41' : nodeColor);
 
   // Save context state
   ctx.save();
 
-  // Apply glow effect for high-risk nodes
-  if (riskConfig.priority >= 4) {
-    ctx.shadowColor = nodeColor;
-    ctx.shadowBlur = isSelected ? 25 : (isHovered ? 20 : 15);
+  // Apply glow effect for high-risk or highlighted nodes
+  if (riskConfig.priority >= 4 || isHighlighted) {
+    ctx.shadowColor = isHighlighted ? borderColor : nodeColor;
+    ctx.shadowBlur = isSelected ? 25 : (isHovered ? 20 : (isHighlighted ? 12 : 15));
   }
 
   // Draw main node circle
@@ -42,7 +44,7 @@ const GraphNode = ({
   ctx.fill();
   
   // Draw border
-  ctx.lineWidth = isSelected ? 3 : (isHovered ? 2 : 1);
+  ctx.lineWidth = isSelected ? 3 : (isHovered || isHighlighted ? 2 : 1);
   ctx.strokeStyle = borderColor;
   ctx.stroke();
 
