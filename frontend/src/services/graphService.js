@@ -13,6 +13,11 @@ class GraphService {
     this.listeners = new Map();
   }
 
+  getEndpointId(endpoint) {
+    if (endpoint && typeof endpoint === 'object') return endpoint.id;
+    return endpoint;
+  }
+
   // Graph Data Management
   async loadGraphData(filters = {}) {
     try {
@@ -130,11 +135,16 @@ class GraphService {
     
     // Count connections
     edges.forEach(edge => {
-      const sourceCount = connectionMap.get(edge.source) || 0;
-      const targetCount = connectionMap.get(edge.target) || 0;
-      
-      connectionMap.set(edge.source, sourceCount + 1);
-      connectionMap.set(edge.target, targetCount + 1);
+      const sourceId = this.getEndpointId(edge.source);
+      const targetId = this.getEndpointId(edge.target);
+
+      if (!sourceId || !targetId) return;
+
+      const sourceCount = connectionMap.get(sourceId) || 0;
+      const targetCount = connectionMap.get(targetId) || 0;
+
+      connectionMap.set(sourceId, sourceCount + 1);
+      connectionMap.set(targetId, targetCount + 1);
     });
     
     // Update nodes with connection counts
@@ -248,8 +258,11 @@ class GraphService {
       this.cache.nodes.delete(id);
       
       // Remove related edges
-      const edgesToRemove = Array.from(this.cache.edges.values())
-        .filter(edge => edge.source === id || edge.target === id);
+      const edgesToRemove = Array.from(this.cache.edges.values()).filter(edge => {
+        const sourceId = this.getEndpointId(edge.source);
+        const targetId = this.getEndpointId(edge.target);
+        return sourceId === id || targetId === id;
+      });
       
       edgesToRemove.forEach(edge => {
         this.cache.edges.delete(edge.id);
@@ -268,22 +281,133 @@ class GraphService {
   // Process entity data
   processEntity(entity) {
     const riskScore = entity.risk_score || entity.riskScore || 0.5;
-    
+
     return {
       ...entity,
       riskScore,
       riskLevel: getRiskLevelFromScore(riskScore),
       connections: this.getEntityConnectionCount(entity.id),
-      size: this.calculateNodeSize({ ...entity, connections: this.getEntityConnectionCount(entity.id) }),
+      size: this.calculateNodeSize({
+        ...entity,
+        connections: this.getEntityConnectionCount(entity.id)
+      }),
       color: this.getNodeColor({ riskLevel: getRiskLevelFromScore(riskScore) })
     };
   }
 
+  // Apply incoming events (e.g., from WebSocket) to the local cache and re-emit
+  handleEntityCreated(entity) {
+    const processedEntity = this.processEntity(entity);
+    this.cache.nodes.set(processedEntity.id, processedEntity);
+    this.emit('entity_created', processedEntity);
+    return processedEntity;
+  }
+
+  handleEntityUpdated(entity) {
+    const processedEntity = this.processEntity(entity);
+    this.cache.nodes.set(processedEntity.id, processedEntity);
+    this.emit('entity_updated', processedEntity);
+    return processedEntity;
+  }
+
+  handleEntityDeleted(payload) {
+    const id = payload?.id;
+    if (!id) return null;
+
+    const getEndpointId = (endpoint) => {
+      if (endpoint && typeof endpoint === 'object') return endpoint.id;
+      return endpoint;
+    };
+
+    this.cache.nodes.delete(id);
+
+    const removedEdges = Array.from(this.cache.edges.values()).filter((edge) => {
+      const sourceId = getEndpointId(edge.source);
+      const targetId = getEndpointId(edge.target);
+      return sourceId === id || targetId === id;
+    });
+
+    removedEdges.forEach((edge) => {
+      this.cache.edges.delete(edge.id);
+    });
+
+    // Update connections for the remaining nodes that were connected to the removed entity
+    removedEdges.forEach((edge) => {
+      const sourceId = getEndpointId(edge.source);
+      const targetId = getEndpointId(edge.target);
+      const otherId = sourceId === id ? targetId : sourceId;
+
+      if (!otherId) return;
+
+      this.updateEntityConnections(otherId);
+      const updated = this.cache.nodes.get(otherId);
+      if (updated) {
+        this.emit('entity_updated', updated);
+      }
+    });
+
+    this.emit('entity_deleted', { id, removedEdges });
+
+    return { id, removedEdges };
+  }
+
+  handleRelationshipCreated(relationship) {
+    const processedRelationship = this.processRelationship(relationship);
+    this.cache.edges.set(processedRelationship.id, processedRelationship);
+
+    const sourceId = processedRelationship?.source?.id ?? processedRelationship?.source;
+    const targetId = processedRelationship?.target?.id ?? processedRelationship?.target;
+
+    if (sourceId) this.updateEntityConnections(sourceId);
+    if (targetId) this.updateEntityConnections(targetId);
+
+    this.emit('relationship_created', processedRelationship);
+
+    const updatedSource = sourceId ? this.cache.nodes.get(sourceId) : null;
+    const updatedTarget = targetId ? this.cache.nodes.get(targetId) : null;
+    if (updatedSource) this.emit('entity_updated', updatedSource);
+    if (updatedTarget) this.emit('entity_updated', updatedTarget);
+
+    return processedRelationship;
+  }
+
+  handleRelationshipDeleted(relationship) {
+    const id = relationship?.id;
+    if (!id) return null;
+
+    const existing = this.cache.edges.get(id) || relationship;
+    this.cache.edges.delete(id);
+
+    const sourceId = existing?.source?.id ?? existing?.source;
+    const targetId = existing?.target?.id ?? existing?.target;
+
+    if (sourceId) {
+      this.updateEntityConnections(sourceId);
+      const updated = this.cache.nodes.get(sourceId);
+      if (updated) this.emit('entity_updated', updated);
+    }
+
+    if (targetId) {
+      this.updateEntityConnections(targetId);
+      const updated = this.cache.nodes.get(targetId);
+      if (updated) this.emit('entity_updated', updated);
+    }
+
+    this.emit('relationship_deleted', existing);
+
+    return existing;
+  }
+
   // Get entity connection count
   getEntityConnectionCount(entityId) {
-    return Array.from(this.cache.edges.values())
-      .filter(edge => edge.source === entityId || edge.target === entityId)
-      .length;
+    const id = this.getEndpointId(entityId);
+    if (!id) return 0;
+
+    return Array.from(this.cache.edges.values()).filter(edge => {
+      const sourceId = this.getEndpointId(edge.source);
+      const targetId = this.getEndpointId(edge.target);
+      return sourceId === id || targetId === id;
+    }).length;
   }
 
   // Relationship Operations
@@ -346,7 +470,10 @@ class GraphService {
   }
 
   // Update entity connections after relationship change
-  updateEntityConnections(entityId) {
+  updateEntityConnections(entityRef) {
+    const entityId = this.getEndpointId(entityRef);
+    if (!entityId) return;
+
     const entity = this.cache.nodes.get(entityId);
     if (entity) {
       entity.connections = this.getEntityConnectionCount(entityId);
@@ -402,7 +529,11 @@ class GraphService {
     
     // Only include edges that connect to filtered nodes
     const nodeIds = new Set(nodes.map(node => node.id));
-    edges = edges.filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+    edges = edges.filter(edge => {
+      const sourceId = this.getEndpointId(edge.source);
+      const targetId = this.getEndpointId(edge.target);
+      return nodeIds.has(sourceId) && nodeIds.has(targetId);
+    });
     
     return { nodes, edges };
   }

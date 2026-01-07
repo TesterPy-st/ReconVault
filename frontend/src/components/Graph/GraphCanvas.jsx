@@ -73,10 +73,15 @@ const GraphCanvas = ({
     }
 
     // Only include edges that connect to filtered nodes
-    const nodeIds = new Set(filteredNodes.map(node => node.id));
-    filteredEdges = filteredEdges.filter(edge => 
-      nodeIds.has(edge.source) && nodeIds.has(edge.target)
-    );
+    const nodeIds = new Set(filteredNodes.map((node) => node.id));
+    const getEndpointId = (endpoint) =>
+      endpoint && typeof endpoint === 'object' ? endpoint.id : endpoint;
+
+    filteredEdges = filteredEdges.filter((edge) => {
+      const sourceId = getEndpointId(edge.source);
+      const targetId = getEndpointId(edge.target);
+      return nodeIds.has(sourceId) && nodeIds.has(targetId);
+    });
 
     return { nodes: filteredNodes, links: filteredEdges };
   }, [nodes, edges, filters]);

@@ -13,12 +13,21 @@ const GraphEdge = ({
   // Get relationship configuration
   const relationshipConfig = getRelationshipTypeConfig(link.type);
   
-  // Calculate edge properties
-  const sourceX = link.source.x;
-  const sourceY = link.source.y;
-  const targetX = link.target.x;
-  const targetY = link.target.y;
-  
+  const getNodePosition = (node) => {
+    if (node && typeof node === 'object') {
+      return { x: node.x, y: node.y };
+    }
+    return { x: undefined, y: undefined };
+  };
+
+  // Calculate edge properties (force-graph may provide source/target as ids initially)
+  const { x: sourceX, y: sourceY } = getNodePosition(link.source);
+  const { x: targetX, y: targetY } = getNodePosition(link.target);
+
+  if (![sourceX, sourceY, targetX, targetY].every(Number.isFinite)) {
+    return null;
+  }
+
   const isSelected = selectedEdge?.id === link.id;
   const isHighlighted = highlightLinks.has(link) || highlightLinks.has(link.id);
   
@@ -30,7 +39,7 @@ const GraphEdge = ({
   // Calculate control points for curved edge
   const dx = targetX - sourceX;
   const dy = targetY - sourceY;
-  const dr = Math.sqrt(dx * dx + dy * dy);
+  const dr = Math.sqrt(dx * dx + dy * dy) || 1;
   
   // Curvature control point
   const curvature = 0.3;
