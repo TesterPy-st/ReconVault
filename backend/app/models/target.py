@@ -48,7 +48,7 @@ class Target(Base):
         status (TargetStatus): Current investigation status
         risk_score (float): Risk assessment score (0.0 to 1.0)
         description (str): Optional description of the target
-        metadata (str): JSON string for additional target information
+        entity_metadata (str): JSON string for additional target information
         created_at (datetime): Creation timestamp
         updated_at (datetime): Last update timestamp
         is_active (bool): Whether target is active for investigation
@@ -69,7 +69,7 @@ class Target(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    entity_metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
     
     # Timestamps
     created_at = Column(
@@ -136,7 +136,7 @@ class Target(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "entity_metadata": self.entity_metadata,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "is_active": self.is_active

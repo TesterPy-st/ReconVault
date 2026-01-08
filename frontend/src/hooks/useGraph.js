@@ -38,9 +38,16 @@ export const useGraph = (initialFilters = {}) => {
   // Refs for performance optimization
   const animationFrameRef = useRef();
   const lastFrameTimeRef = useRef();
+  const frameCountRef = useRef(0);
   const nodeCountRef = useRef(0);
   const edgeCountRef = useRef(0);
   const filtersRef = useRef(filters);
+  const perfMetricsRef = useRef({
+    fps: 0,
+    renderTime: 0,
+    nodeCount: 0,
+    edgeCount: 0,
+  });
 
   useEffect(() => {
     filtersRef.current = filters;
@@ -84,13 +91,20 @@ export const useGraph = (initialFilters = {}) => {
         const deltaTime = now - lastFrameTime;
         const fps = deltaTime > 0 ? 1000 / deltaTime : 0;
 
-        setPerfMetrics((prev) => ({
-          ...prev,
+        // Update ref immediately for accurate tracking
+        perfMetricsRef.current = {
           fps: Math.round(fps),
           renderTime: Math.round(deltaTime),
           nodeCount: nodeCountRef.current,
           edgeCount: edgeCountRef.current,
-        }));
+        };
+
+        // Only update state every 60 frames (~1 second at 60fps) to avoid excessive re-renders
+        frameCountRef.current++;
+        if (frameCountRef.current >= 60) {
+          setPerfMetrics({ ...perfMetricsRef.current });
+          frameCountRef.current = 0;
+        }
       }
 
       lastFrameTimeRef.current = now;
@@ -249,7 +263,7 @@ export const useGraph = (initialFilters = {}) => {
       unsubscribeWSRelationshipCreated?.();
       unsubscribeWSRelationshipDeleted?.();
     };
-  }, [loadGraphData, selectedNode, selectedEdge]);
+  }, [loadGraphData]);
 
   // Load data on mount
   useEffect(() => {

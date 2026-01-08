@@ -72,7 +72,7 @@ class Intelligence(Base):
         priority_score (float): Calculated priority score
         status (IntelligenceStatus): Current processing status
         tags (str): Comma-separated tags
-        metadata (str): JSON string for flexible metadata
+        entity_metadata (str): JSON string for flexible metadata
         ioc_indicators (str): JSON string for IoC indicators
         recommendations (str): Action recommendations
         analyst_notes (str): Analyst notes and comments
@@ -111,7 +111,7 @@ class Intelligence(Base):
 
     # Categorization
     tags = Column(String(1000), nullable=True)  # Comma-separated tags
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    entity_metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
     ioc_indicators = Column(Text, nullable=True)  # JSON string for IoC data
 
     # Recommendations and notes
@@ -236,7 +236,7 @@ class Intelligence(Base):
             "risk_level": self.risk_level,
             "age_days": self.age_days,
             "tags": self.tags,
-            "metadata": self.metadata,
+            "entity_metadata": self.entity_metadata,
             "ioc_indicators": self.ioc_indicators,
             "recommendations": self.recommendations,
             "analyst_notes": self.analyst_notes,
@@ -456,7 +456,7 @@ class ComplianceViolation(Base):
         severity (str): Severity level (low, medium, high, critical)
         message (str): Human-readable violation message
         source (str): Source of violation (collector name, API)
-        metadata (str): JSON string for flexible metadata
+        violation_metadata (str): JSON string for flexible metadata
         resolved (bool): Whether violation has been resolved
         resolved_at (datetime): When violation was resolved
         resolution_notes (str): Notes on violation resolution
@@ -479,7 +479,7 @@ class ComplianceViolation(Base):
     source = Column(String(100), nullable=False, index=True)
 
     # Resolution and Metadata
-    metadata = Column(Text, nullable=True)  # JSON string
+    violation_metadata = Column(Text, nullable=True)  # JSON string
     resolved = Column(Boolean, default=False, nullable=False, index=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolution_notes = Column(Text, nullable=True)
@@ -504,9 +504,9 @@ class ComplianceViolation(Base):
         import json
 
         metadata_dict = {}
-        if self.metadata:
+        if self.violation_metadata:
             try:
-                metadata_dict = json.loads(self.metadata)
+                metadata_dict = json.loads(self.violation_metadata)
             except json.JSONDecodeError:
                 pass
 
@@ -518,7 +518,7 @@ class ComplianceViolation(Base):
             "severity": self.severity,
             "message": self.message,
             "source": self.source,
-            "metadata": metadata_dict,
+            "violation_metadata": metadata_dict,
             "resolved": self.resolved,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
             "resolution_notes": self.resolution_notes,
