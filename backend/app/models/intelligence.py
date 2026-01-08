@@ -8,7 +8,7 @@ intelligence findings and analysis results.
 import enum
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -111,7 +111,7 @@ class Intelligence(Base):
 
     # Categorization
     tags = Column(String(1000), nullable=True)  # Comma-separated tags
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    intelligence_metadata = Column("metadata", JSON, nullable=True)
     ioc_indicators = Column(Text, nullable=True)  # JSON string for IoC data
 
     # Recommendations and notes

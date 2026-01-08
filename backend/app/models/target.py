@@ -5,10 +5,12 @@ This module defines the Target SQLAlchemy model for storing
 target information including type, value, status, and risk assessment.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Boolean
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database import Base
+
 import enum
 from typing import Optional
 
@@ -69,7 +71,7 @@ class Target(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    target_metadata = Column("metadata", JSON, nullable=True)
     
     # Timestamps
     created_at = Column(
@@ -136,7 +138,7 @@ class Target(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "metadata": self.target_metadata,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "is_active": self.is_active
