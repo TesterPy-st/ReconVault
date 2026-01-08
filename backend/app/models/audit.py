@@ -123,7 +123,7 @@ class AuditLog(Base):
         request_id (str): Request identifier for tracing
         timestamp (datetime): When action occurred
         risk_score (float): Risk assessment score
-        metadata (str): JSON string for additional metadata
+        meta_data (str): JSON string for additional metadata
         created_at (datetime): Creation timestamp
     """
     
@@ -166,7 +166,7 @@ class AuditLog(Base):
     
     # Risk assessment
     risk_score = Column(Float, default=0.0, nullable=False, index=True)
-    metadata = Column(Text, nullable=True)  # JSON string for additional metadata
+    meta_data = Column(Text, nullable=True)  # JSON string for additional metadata
     
     # Created at (for indexing purposes)
     created_at = Column(

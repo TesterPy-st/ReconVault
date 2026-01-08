@@ -5,7 +5,7 @@ This module defines the Entity SQLAlchemy model for storing
 entity information discovered during intelligence gathering.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -80,7 +80,7 @@ class Entity(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta_data = Column(Text, nullable=True)  # JSON string for flexible metadata
     tags = Column(String(500), nullable=True)  # Comma-separated tags
     
     # Timestamps
@@ -168,7 +168,7 @@ class Entity(Base):
             "source": self.source,
             "is_verified": self.is_verified,
             "description": self.description,
-            "metadata": self.metadata,
+            "meta_data": self.meta_data,
             "tags": self.tags,
             "first_seen": self.first_seen.isoformat() if self.first_seen else None,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,

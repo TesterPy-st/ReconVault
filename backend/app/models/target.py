@@ -69,7 +69,7 @@ class Target(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta_data = Column(Text, nullable=True)  # JSON string for flexible metadata
     
     # Timestamps
     created_at = Column(
@@ -136,7 +136,7 @@ class Target(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "meta_data": self.meta_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "is_active": self.is_active

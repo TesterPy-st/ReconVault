@@ -111,7 +111,7 @@ class Intelligence(Base):
 
     # Categorization
     tags = Column(String(1000), nullable=True)  # Comma-separated tags
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    meta_data = Column(Text, nullable=True)  # JSON string for flexible metadata
     ioc_indicators = Column(Text, nullable=True)  # JSON string for IoC data
 
     # Recommendations and notes
@@ -479,7 +479,7 @@ class ComplianceViolation(Base):
     source = Column(String(100), nullable=False, index=True)
 
     # Resolution and Metadata
-    metadata = Column(Text, nullable=True)  # JSON string
+    meta_data = Column(Text, nullable=True)  # JSON string
     resolved = Column(Boolean, default=False, nullable=False, index=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolution_notes = Column(Text, nullable=True)
