@@ -68,7 +68,7 @@ class Relationship(Base):
         confidence (float): Confidence in relationship accuracy (0.0 to 1.0)
         weight (float): Relationship weight/strength (0.0 to 1.0)
         description (str): Optional relationship description
-        metadata (str): JSON string for additional relationship information
+        entity_metadata (str): JSON string for additional relationship information
         first_observed (datetime): When relationship was first observed
         last_observed (datetime): When relationship was last observed
         verified (bool): Whether relationship has been verified
@@ -93,7 +93,7 @@ class Relationship(Base):
     
     # Additional information
     description = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
+    entity_metadata = Column(Text, nullable=True)  # JSON string for flexible metadata
     
     # Timestamps
     first_observed = Column(DateTime(timezone=True), nullable=True)
@@ -190,7 +190,7 @@ class Relationship(Base):
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
             "description": self.description,
-            "metadata": self.metadata,
+            "entity_metadata": self.entity_metadata,
             "first_observed": self.first_observed.isoformat() if self.first_observed else None,
             "last_observed": self.last_observed.isoformat() if self.last_observed else None,
             "verified": self.verified,

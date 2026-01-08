@@ -16,11 +16,21 @@ ReconVault is a modern, modular cyber reconnaissance and OSINT platform built fo
 
 ### Prerequisites
 
+**For Docker Deployment:**
 - Docker 20.10+ and Docker Compose 2.0+
 - 8GB RAM (16GB recommended)
 - 20GB disk space
 
+**For Local Development:**
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 14+ (optional for local dev)
+- Neo4j 5+ (optional for local dev)
+- Redis 7+ (optional for local dev)
+
 ### Installation
+
+**Option 1: Docker Deployment (Recommended)**
 
 ```bash
 # Clone and setup
@@ -35,6 +45,67 @@ docker-compose up -d
 # Frontend: http://localhost:5173
 # API Docs: http://localhost:8000/docs
 ```
+
+**Option 2: Local Development Setup**
+
+```bash
+# Clone repository
+git clone https://github.com/TesterPy-st/ReconVault.git
+cd ReconVault
+
+# Backend setup
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Backend environment setup
+# A .env file is already created in backend/.env
+# Edit backend/.env to configure database connections if needed
+# Note: Database connections are optional for basic functionality
+
+# Start backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend setup (new terminal)
+cd ../frontend
+npm install
+
+# Frontend environment setup
+# A .env file is already created in frontend/.env
+# It points to http://localhost:8000 for the backend API
+
+# Start frontend
+npm run dev
+
+# Access the application
+# Frontend: http://localhost:5173
+# API Docs: http://localhost:8000/docs
+```
+
+### Environment Configuration
+
+**Backend Configuration (`backend/.env`):**
+- Basic configuration is already set up in `backend/.env`
+- Database connections (PostgreSQL, Neo4j, Redis) can be left as defaults for local dev
+- External API keys are optional - collectors will gracefully skip unavailable services
+
+**Optional External APIs:**
+All external API integrations are optional. The system will function without them, but certain collectors will have limited functionality:
+
+- **HIBP_API_KEY** - Have I Been Pwned API for breach checking
+  - Get free API key from: https://haveibeenpwned.com/API/Key
+  - Used by: Email collector for breach detection
+  
+- **SHODAN_API_KEY** - Shodan API for IP/network reconnaissance  
+  - Get API key from: https://account.shodan.io/
+  - Used by: IP collector for enhanced device/service discovery
+
+- **VIRUSTOTAL_API_KEY** - VirusTotal API for threat intelligence
+  - Get free API key from: https://www.virustotal.com/
+  - Used by: Domain and IP collectors for reputation checking
+
+To enable these features, uncomment the respective lines in `backend/.env` and add your API keys.
 
 ## Project Status
 

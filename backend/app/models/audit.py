@@ -123,7 +123,7 @@ class AuditLog(Base):
         request_id (str): Request identifier for tracing
         timestamp (datetime): When action occurred
         risk_score (float): Risk assessment score
-        metadata (str): JSON string for additional metadata
+        audit_metadata (str): JSON string for additional metadata
         created_at (datetime): Creation timestamp
     """
     
@@ -166,7 +166,7 @@ class AuditLog(Base):
     
     # Risk assessment
     risk_score = Column(Float, default=0.0, nullable=False, index=True)
-    metadata = Column(Text, nullable=True)  # JSON string for additional metadata
+    audit_metadata = Column(Text, nullable=True)  # JSON string for additional metadata
     
     # Created at (for indexing purposes)
     created_at = Column(
@@ -229,7 +229,7 @@ class AuditLog(Base):
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
-            "metadata": self.metadata,
+            "audit_metadata": self.audit_metadata,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
     
@@ -251,7 +251,7 @@ class AuditLog(Base):
         session_id: Optional[str] = None,
         request_id: Optional[str] = None,
         risk_score: float = 0.0,
-        metadata: Optional[str] = None
+        audit_metadata: Optional[str] = None
     ) -> "AuditLog":
         """
         Create a new audit log entry.
@@ -272,7 +272,7 @@ class AuditLog(Base):
             session_id: Session identifier
             request_id: Request identifier
             risk_score: Risk assessment score
-            metadata: Additional metadata
+            audit_metadata: Additional metadata
         
         Returns:
             AuditLog: New audit log instance
@@ -293,7 +293,7 @@ class AuditLog(Base):
             session_id=session_id,
             request_id=request_id,
             risk_score=risk_score,
-            metadata=metadata
+            audit_metadata=audit_metadata
         )
     
     def is_security_related(self) -> bool:

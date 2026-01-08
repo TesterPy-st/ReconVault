@@ -1,6 +1,9 @@
 // API client service using axios
 import axios from 'axios';
 
+// Request deduplication map
+const pendingRequests = new Map();
+
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
@@ -19,6 +22,23 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Request deduplication for GET requests
+    if (config.method === 'get') {
+      const requestKey = `${config.method}:${config.url}`;
+      
+      // Cancel duplicate pending request
+      if (pendingRequests.has(requestKey)) {
+        const controller = pendingRequests.get(requestKey);
+        controller.abort();
+        pendingRequests.delete(requestKey);
+      }
+      
+      // Create new AbortController for this request
+      const controller = new AbortController();
+      config.signal = controller.signal;
+      pendingRequests.set(requestKey, controller);
+    }
+    
     // Log requests in development
     if (import.meta.env.DEV) {
       console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data);
@@ -35,6 +55,12 @@ apiClient.interceptors.request.use(
 // Response interceptor
 apiClient.interceptors.response.use(
   (response) => {
+    // Clean up pending request tracking
+    if (response.config.method === 'get') {
+      const requestKey = `${response.config.method}:${response.config.url}`;
+      pendingRequests.delete(requestKey);
+    }
+    
     // Log responses in development
     if (import.meta.env.DEV) {
       console.log(`[API] Response:`, response.data);
@@ -43,6 +69,18 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Clean up pending request tracking on error (unless aborted)
+    if (error.config?.method === 'get' && error.name !== 'CanceledError') {
+      const requestKey = `${error.config.method}:${error.config.url}`;
+      pendingRequests.delete(requestKey);
+    }
+    
+    // Don't log aborted requests
+    if (error.name === 'CanceledError') {
+      console.log('[API] Request cancelled (duplicate)');
+      return Promise.reject(error);
+    }
+    
     console.error('[API] Response error:', error);
     
     // Handle specific error cases

@@ -281,7 +281,9 @@ class WebSocketService {
     }
     
     this.reconnectAttempts++;
-    const delay = this.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
+    // Cap max delay at 30 seconds to prevent excessive wait times
+    const baseDelay = this.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
+    const delay = Math.min(baseDelay, 30000);
     
     console.log(`[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
     
