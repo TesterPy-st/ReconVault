@@ -56,22 +56,109 @@ async def get_graph_health():
 async def get_graph_statistics():
     """
     Get comprehensive graph statistics.
-    
+
     Returns:
         GraphStatistics: Graph statistics
     """
     try:
         graph_service = get_graph_service()
         stats = graph_service.get_statistics()
-        
+
         return stats
-        
+
     except Exception as e:
         logger.error(f"Failed to get graph statistics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get graph statistics: {str(e)}"
         )
+
+
+@router.get("/", response_model=dict)
+async def get_graph():
+    """
+    Get complete graph data (nodes and edges).
+
+    Returns:
+        dict: Graph data with nodes and edges
+    """
+    try:
+        graph_service = get_graph_service()
+
+        # Get all nodes and edges from graph database
+        from app.intelligence_graph.graph_models import GraphData
+
+        # Get nodes from Neo4j
+        nodes_data = graph_service.graph_ops.get_all_nodes(limit=1000)
+
+        # Convert to GraphNode format
+        nodes = []
+        for node_data in nodes_data:
+            properties = node_data.get("properties", {})
+            nodes.append({
+                "id": node_data.get("id"),
+                "value": properties.get("value", ""),
+                "type": properties.get("type", "UNKNOWN"),
+                "risk_score": properties.get("risk_score", 0.5),
+                "risk_level": properties.get("risk_level", "INFO"),
+                "confidence": properties.get("confidence", 0.5),
+                "source": properties.get("source", "MANUAL"),
+                "connections": node_data.get("degree", 0),
+                "size": properties.get("size", 10),
+                "color": properties.get("color", "#00d9ff"),
+                "metadata": properties.get("metadata", {}),
+                "created_at": properties.get("created_at"),
+                "updated_at": properties.get("updated_at")
+            })
+
+        # Get edges from Neo4j
+        edges_data = graph_service.graph_ops.get_all_edges(limit=5000)
+
+        # Convert to edge format
+        edges = []
+        for edge_data in edges_data:
+            properties = edge_data.get("properties", {})
+            edges.append({
+                "id": edge_data.get("id"),
+                "source": edge_data.get("source", ""),
+                "target": edge_data.get("target", ""),
+                "type": properties.get("type", "RELATED_TO"),
+                "confidence": properties.get("confidence", 0.5),
+                "strength": properties.get("strength", 0.5),
+                "thickness": properties.get("thickness", 1),
+                "color": properties.get("color", "#888888"),
+                "metadata": properties.get("metadata", {}),
+                "created_at": properties.get("created_at"),
+                "updated_at": properties.get("updated_at")
+            })
+
+        graph_data = {
+            "nodes": nodes,
+            "edges": edges,
+            "lastUpdate": datetime.now(timezone.utc).isoformat(),
+            "metadata": {
+                "totalNodes": len(nodes),
+                "totalEdges": len(edges),
+                "queryTime": 0.0  # Would be measured in production
+            }
+        }
+
+        logger.info(f"Graph data loaded: {len(nodes)} nodes, {len(edges)} edges")
+        return graph_data
+
+    except Exception as e:
+        logger.error(f"Failed to get graph data: {e}")
+        # Return empty graph on error instead of crashing
+        return {
+            "nodes": [],
+            "edges": [],
+            "lastUpdate": datetime.now(timezone.utc).isoformat(),
+            "metadata": {
+                "totalNodes": 0,
+                "totalEdges": 0,
+                "error": str(e)
+            }
+        }
 
 
 @router.post("/search", response_model=GraphSearchResponse)

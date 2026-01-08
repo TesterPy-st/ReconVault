@@ -4,7 +4,7 @@ import axios from 'axios';
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
-  timeout: 30000,
+  timeout: 10000, // Reduced timeout to fail fast
   headers: {
     'Content-Type': 'application/json',
   },
@@ -39,21 +39,27 @@ apiClient.interceptors.response.use(
     if (import.meta.env.DEV) {
       console.log(`[API] Response:`, response.data);
     }
-    
+
     return response;
   },
   (error) => {
-    console.error('[API] Response error:', error);
-    
+    // Only log errors in development
+    if (import.meta.env.DEV) {
+      console.error('[API] Response error:', error);
+    }
+
     // Handle specific error cases
     if (error.response) {
       const { status, data } = error.response;
-      
+
       switch (status) {
         case 401:
           // Unauthorized - redirect to login or clear token
           localStorage.removeItem('authToken');
-          window.location.href = '/login';
+          // Only redirect if we're not already on login page
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
           break;
         case 403:
           console.warn('[API] Access forbidden');
@@ -71,9 +77,16 @@ apiClient.interceptors.response.use(
           console.error(`[API] HTTP ${status}:`, data?.message || 'Unknown error');
       }
     } else if (error.request) {
+      // Network error - likely backend unavailable
       console.error('[API] Network error - no response received');
+
+      // Enhance error with useful information for UI
+      error.userMessage = 'Backend service unavailable. Please check if the server is running.';
+      error.isNetworkError = true;
+    } else {
+      console.error('[API] Request setup error:', error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );

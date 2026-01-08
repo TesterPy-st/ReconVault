@@ -364,26 +364,28 @@ const EntityInspector = ({
           </div>
         )}
         
-        {/* Mock history entries */}
-        {[
-          { action: 'Risk assessment updated', date: entity.updated_at, type: 'update' },
-          { action: 'New connections discovered', date: entity.updated_at, type: 'connection' },
-          { action: 'Source verification', date: entity.created_at, type: 'verify' }
-        ].map((entry, index) => (
-          <div key={index} className="flex items-center space-x-3 p-3 bg-cyber-light bg-opacity-30 rounded border border-cyber-border">
-            <div className={`w-3 h-3 rounded-full ${
-              entry.type === 'update' ? 'bg-neon-cyan' :
-              entry.type === 'connection' ? 'bg-neon-purple' :
-              'bg-warning-yellow'
-            }`}></div>
-            <div className="flex-1">
-              <div className="text-xs font-mono text-neon-green">{entry.action}</div>
-              <div className="text-xs text-cyber-gray">
-                {formatDate(entry.date, 'relative')}
+        {/* History entries will be fetched from backend in future */}
+        {entity.history && entity.history.length > 0 ? (
+          entity.history.slice(0, 5).map((entry, index) => (
+            <div key={index} className="flex items-center space-x-3 p-3 bg-cyber-light bg-opacity-30 rounded border border-cyber-border">
+              <div className={`w-3 h-3 rounded-full ${
+                entry.type === 'update' ? 'bg-neon-cyan' :
+                entry.type === 'connection' ? 'bg-neon-purple' :
+                'bg-warning-yellow'
+              }`}></div>
+              <div className="flex-1">
+                <div className="text-xs font-mono text-neon-green">{entry.action}</div>
+                <div className="text-xs text-cyber-gray">
+                  {formatDate(entry.date, 'relative')}
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-4 text-cyber-gray text-xs">
+            No history available
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

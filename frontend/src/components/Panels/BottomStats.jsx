@@ -37,8 +37,8 @@ const BottomStats = ({
       totalEdges: edges.length,
       graphDensity: calculateGraphDensity(nodes.length, edges.length),
       avgNodeDegree: calculateAverageNodeDegree(nodes, edges),
-      collectionTasks: Math.floor(Math.random() * 10) + 1, // Mock data
-      dataSources: 7, // Mock data
+      collectionTasks: 0, // Will be fetched from backend
+      dataSources: 0, // Will be fetched from backend
       lastUpdate: new Date(),
       criticalNodes: nodes.filter(n => n.riskLevel === 'CRITICAL').length,
       highRiskNodes: nodes.filter(n => n.riskLevel === 'HIGH').length
@@ -52,7 +52,7 @@ const BottomStats = ({
       fps: performance.fps,
       renderTime: performance.renderTime,
       memoryUsage: calculateMemoryUsage(),
-      networkLatency: Math.floor(Math.random() * 100) + 50 // Mock latency
+      networkLatency: null // Will be measured when backend is available
     });
   }, [performance]);
 

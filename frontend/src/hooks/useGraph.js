@@ -46,7 +46,7 @@ export const useGraph = (initialFilters = {}) => {
     filtersRef.current = filters;
   }, [filters]);
 
-  // Load graph data
+  // Load graph data with retry protection
   const loadGraphData = useCallback(async (newFilters) => {
     const effectiveFilters = newFilters ?? filtersRef.current;
 
@@ -67,14 +67,29 @@ export const useGraph = (initialFilters = {}) => {
         `[useGraph] Loaded ${data.nodes.length} nodes and ${data.edges.length} edges`
       );
     } catch (err) {
-      console.error('[useGraph] Error loading graph data:', err);
-      setError(err.message || 'Failed to load graph data');
+      // Only log errors in development to avoid console spam
+      if (import.meta.env.DEV) {
+        console.error('[useGraph] Error loading graph data:', err);
+      }
+
+      // Set error for UI display but don't crash
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+        setError('Backend unavailable. Please ensure the backend is running.');
+      } else {
+        setError(err.message || 'Failed to load graph data');
+      }
+
+      // Set empty data to prevent crashes
+      setNodes([]);
+      setEdges([]);
+      nodeCountRef.current = 0;
+      edgeCountRef.current = 0;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Performance monitoring
+  // Performance monitoring (throttled to prevent infinite re-renders)
   useEffect(() => {
     const measurePerformance = () => {
       const now = getNow();
@@ -84,13 +99,16 @@ export const useGraph = (initialFilters = {}) => {
         const deltaTime = now - lastFrameTime;
         const fps = deltaTime > 0 ? 1000 / deltaTime : 0;
 
-        setPerfMetrics((prev) => ({
-          ...prev,
-          fps: Math.round(fps),
-          renderTime: Math.round(deltaTime),
-          nodeCount: nodeCountRef.current,
-          edgeCount: edgeCountRef.current,
-        }));
+        // Update state less frequently (every 500ms) to avoid excessive re-renders
+        if (now % 500 < 16) { // Check if we're in a 500ms window
+          setPerfMetrics((prev) => ({
+            ...prev,
+            fps: Math.round(fps),
+            renderTime: Math.round(deltaTime),
+            nodeCount: nodeCountRef.current,
+            edgeCount: edgeCountRef.current,
+          }));
+        }
       }
 
       lastFrameTimeRef.current = now;

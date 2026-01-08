@@ -30,7 +30,11 @@ class WebSocketService {
     this.path = WEBSOCKET_CONFIG.PATH;
     this.fullUrl = WebSocketService.joinUrl(this.baseUrl, this.path);
 
-    console.log('[WebSocket] Service initialized:', this.fullUrl);
+    // Only log initialization in development
+    const isDev = import.meta?.env?.DEV || import.meta?.env?.MODE === 'development';
+    if (isDev) {
+      console.log('[WebSocket] Service initialized:', this.fullUrl);
+    }
   }
 
   static joinUrl(baseUrl, path) {
@@ -279,21 +283,35 @@ class WebSocketService {
     if (this.reconnectTimer) {
       return;
     }
-    
+
+    // Check if we've exceeded max attempts
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn('[WebSocket] Max reconnection attempts reached. Stopping reconnection.');
+      this.emit('max_reconnect_attempts_reached', {
+        attempts: this.reconnectAttempts,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     this.reconnectAttempts++;
     const delay = this.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
-    
-    console.log(`[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
-    
+
+    // Only log reconnection in development to avoid console spam
+    const isDev = import.meta?.env?.DEV || import.meta?.env?.MODE === 'development';
+    if (isDev) {
+      console.log(`[WebSocket] Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
+    }
+
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
     }, delay);
-    
-    this.emit('reconnecting', { 
-      attempt: this.reconnectAttempts, 
+
+    this.emit('reconnecting', {
+      attempt: this.reconnectAttempts,
       delay,
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString()
     });
   }
 

@@ -525,6 +525,81 @@ class GraphOperations:
             return False
 
 
+    def get_all_nodes(self, limit: int = 1000) -> List[Dict[str, Any]]:
+        """
+        Get all nodes from the graph.
+
+        Args:
+            limit: Maximum number of nodes to return
+
+        Returns:
+            List[Dict[str, Any]]: List of node data
+        """
+        try:
+            # Build Cypher query to get all nodes
+            cypher_query = f"""
+            MATCH (n)
+            RETURN n LIMIT {limit}
+            """
+
+            results = self.client.run_query(cypher_query, {"limit": limit})
+
+            nodes = []
+            for result in results:
+                node_data = result.get("n", {})
+                graph_node = GraphNode(
+                    id=node_data.get("id", ""),
+                    labels=node_data.get("labels", ["Unknown"]),
+                    properties=dict(node_data)
+                )
+                nodes.append(graph_node.to_dict())
+
+            logger.info(f"Retrieved {len(nodes)} nodes from graph")
+            return nodes
+
+        except Exception as e:
+            logger.error(f"Failed to get all nodes: {e}")
+            return []
+
+    def get_all_edges(self, limit: int = 5000) -> List[Dict[str, Any]]:
+        """
+        Get all edges from the graph.
+
+        Args:
+            limit: Maximum number of edges to return
+
+        Returns:
+            List[Dict[str, Any]]: List of edge data
+        """
+        try:
+            # Build Cypher query to get all edges
+            cypher_query = f"""
+            MATCH ()-[r]->()
+            RETURN r LIMIT {limit}
+            """
+
+            results = self.client.run_query(cypher_query, {"limit": limit})
+
+            edges = []
+            for result in results:
+                edge_data = result.get("r", {})
+                edge = {
+                    "id": edge_data.get("id", ""),
+                    "start": edge_data.get("start", ""),
+                    "end": edge_data.get("end", ""),
+                    "type": edge_data.get("type", "RELATED_TO"),
+                    "properties": dict(edge_data)
+                }
+                edges.append(edge)
+
+            logger.info(f"Retrieved {len(edges)} edges from graph")
+            return edges
+
+        except Exception as e:
+            logger.error(f"Failed to get all edges: {e}")
+            return []
+
+
 # Global graph operations instance
 graph_operations = GraphOperations()
 
@@ -532,7 +607,7 @@ graph_operations = GraphOperations()
 def get_graph_operations() -> GraphOperations:
     """
     Get global graph operations instance.
-    
+
     Returns:
         GraphOperations: Global graph operations handler
     """
