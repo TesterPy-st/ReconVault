@@ -5,12 +5,14 @@ This module defines the AuditLog SQLAlchemy model for tracking
 all system activities and changes for compliance and security.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database import Base
+
 import enum
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class AuditAction(str, enum.Enum):
@@ -166,7 +168,7 @@ class AuditLog(Base):
     
     # Risk assessment
     risk_score = Column(Float, default=0.0, nullable=False, index=True)
-    metadata = Column(Text, nullable=True)  # JSON string for additional metadata
+    audit_metadata = Column("metadata", JSON, nullable=True)
     
     # Created at (for indexing purposes)
     created_at = Column(
@@ -229,8 +231,8 @@ class AuditLog(Base):
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "risk_score": self.risk_score,
             "risk_level": self.risk_level,
-            "metadata": self.metadata,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "metadata": self.audit_metadata,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
     
     @classmethod
@@ -251,7 +253,7 @@ class AuditLog(Base):
         session_id: Optional[str] = None,
         request_id: Optional[str] = None,
         risk_score: float = 0.0,
-        metadata: Optional[str] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> "AuditLog":
         """
         Create a new audit log entry.
@@ -293,7 +295,7 @@ class AuditLog(Base):
             session_id=session_id,
             request_id=request_id,
             risk_score=risk_score,
-            metadata=metadata
+            audit_metadata=metadata,
         )
     
     def is_security_related(self) -> bool:
