@@ -25,7 +25,6 @@ from app.collectors import (
     SocialCollector,
     WebCollector,
 )
-from app.services.collection_pipeline_service import CollectionPipelineService
 
 # Configure Celery logger
 celery_logger = logging.getLogger("celery")
@@ -429,6 +428,8 @@ def full_reconnaissance(
     try:
         with AsyncTaskContext() as loop:
             # Initialize pipeline service
+            from app.services.collection_pipeline_service import \
+                CollectionPipelineService
             pipeline = CollectionPipelineService()
 
             async def run_pipeline():
