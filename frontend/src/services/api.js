@@ -379,21 +379,21 @@ export const reportsAPI = {
 
 // Health/Status API methods
 export const healthAPI = {
-  // Get system health status
+  // Get basic service health status
   getHealth: async () => {
     const response = await apiClient.get('/health');
     return response.data;
   },
 
-  // Get detailed system status
+  // Get comprehensive system health status
   getSystemStatus: async () => {
-    const response = await apiClient.get('/health/detailed');
+    const response = await apiClient.get('/health/full');
     return response.data;
   },
 
   // Get database status
   getDatabaseStatus: async () => {
-    const response = await apiClient.get('/health/database');
+    const response = await apiClient.get('/health/db');
     return response.data;
   },
 
@@ -403,9 +403,15 @@ export const healthAPI = {
     return response.data;
   },
 
-  // Get Redis status
-  getRedisStatus: async () => {
-    const response = await apiClient.get('/health/redis');
+  // Get graph service status
+  getGraphStatus: async () => {
+    const response = await apiClient.get('/health/graph');
+    return response.data;
+  },
+
+  // Get monitoring metrics
+  getMetrics: async () => {
+    const response = await apiClient.get('/health/metrics');
     return response.data;
   }
 };

@@ -625,7 +625,7 @@ class PerformanceService {
 const performanceService = new PerformanceService();
 
 // Auto-start monitoring in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   performanceService.startMonitoring();
 }
 

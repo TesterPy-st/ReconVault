@@ -26,7 +26,7 @@ class ErrorBoundary extends React.Component {
     }));
 
     // Log to external service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       this.logErrorToService(error, errorInfo);
     }
   }
@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      const isDevelopment = process.env.NODE_ENV === 'development';
+      const isDevelopment = import.meta.env.DEV;
 
       return (
         <div className="min-h-screen bg-cyber-black flex items-center justify-center p-4">

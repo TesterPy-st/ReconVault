@@ -273,10 +273,11 @@ const TopHeader = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => onMenuAction('export')}
+            onClick={() => onMenuAction('settings')}
             className="
               px-3 py-2 rounded-lg border border-cyber-border
               text-cyber-gray hover:text-neon-green hover:border-neon-green
+              active:scale-95
               text-xs font-mono transition-all
             "
           >
@@ -357,7 +358,7 @@ const TopHeader = ({
       </div>
 
       {/* Performance Monitor (Dev Mode) */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <div className="absolute bottom-0 left-0 right-0 bg-cyber-black bg-opacity-50 p-2">
           <div className="flex justify-between text-xs font-mono text-cyber-gray">
             <span>FPS: 60</span>

@@ -21,8 +21,8 @@ const defaultSettings = {
   showInfoNotifications: true,
   
   // API Settings
-  backendURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
-  websocketURL: process.env.REACT_APP_WS_URL || 'ws://localhost:8000',
+  backendURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000',
+  websocketURL: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/intelligence',
   requestTimeout: 30000, // ms
   retryCount: 3,
   

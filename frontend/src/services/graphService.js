@@ -1,6 +1,7 @@
 // Graph data service operations
 import { graphAPI, entityAPI, relationshipAPI } from './api';
 import { getRiskLevelFromScore, calculateRiskScore } from '../utils/riskLevelUtils';
+import { mockGraphData } from '../utils/mockGraphData';
 
 class GraphService {
   constructor() {
@@ -16,6 +17,23 @@ class GraphService {
   getEndpointId(endpoint) {
     if (endpoint && typeof endpoint === 'object') return endpoint.id;
     return endpoint;
+  }
+
+  isNetworkError(error) {
+    if (!error) return false;
+
+    if (error?.response) return false;
+
+    const message = String(error?.message || '');
+    const code = String(error?.code || '');
+
+    return (
+      code === 'ERR_NETWORK' ||
+      message.includes('Network Error') ||
+      message.includes('ERR_CONNECTION_REFUSED') ||
+      message.includes('ECONNREFUSED') ||
+      message.includes('Failed to fetch')
+    );
   }
 
   // Graph Data Management
@@ -47,6 +65,28 @@ class GraphService {
       return processedData;
       
     } catch (error) {
+      if (this.isNetworkError(error)) {
+        console.warn('[GraphService] Backend unavailable, using mock graph data');
+
+        const processedData = this.processGraphData(mockGraphData);
+
+        this.cache.nodes.clear();
+        this.cache.edges.clear();
+
+        processedData.nodes.forEach((node) => {
+          this.cache.nodes.set(node.id, node);
+        });
+
+        processedData.edges.forEach((edge) => {
+          this.cache.edges.set(edge.id, edge);
+        });
+
+        this.cache.lastUpdate = new Date();
+        this.emit('graph_data_loaded', processedData);
+
+        return processedData;
+      }
+
       console.error('[GraphService] Error loading graph data:', error);
       throw error;
     }
@@ -483,11 +523,59 @@ class GraphService {
   }
 
   // Search and Filter Operations
+  searchEntitiesLocal(query, filters = {}) {
+    const normalizedQuery = String(query || '').toLowerCase().trim();
+    if (!normalizedQuery) return [];
+
+    let nodes = Array.from(this.cache.nodes.values());
+
+    const entityTypes = filters?.entityTypes || filters?.nodeTypes;
+    if (Array.isArray(entityTypes) && entityTypes.length > 0) {
+      nodes = nodes.filter((node) => entityTypes.includes(node.type));
+    }
+
+    const riskLevels = filters?.riskLevels;
+    if (Array.isArray(riskLevels) && riskLevels.length > 0) {
+      nodes = nodes.filter((node) => riskLevels.includes(node.riskLevel));
+    }
+
+    const confidenceRange = filters?.confidenceRange;
+    if (confidenceRange && typeof confidenceRange === 'object') {
+      const min = typeof confidenceRange.min === 'number' ? confidenceRange.min : 0;
+      const max = typeof confidenceRange.max === 'number' ? confidenceRange.max : 1;
+      nodes = nodes.filter((node) => {
+        const confidence = typeof node.confidence === 'number' ? node.confidence : 0;
+        return confidence >= min && confidence <= max;
+      });
+    }
+
+    const sources = filters?.sources;
+    if (Array.isArray(sources) && sources.length > 0) {
+      nodes = nodes.filter((node) => sources.includes(node.source));
+    }
+
+    nodes = nodes.filter((node) => {
+      const haystack = [node.value, node.id, node.type, node.source]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+
+    return nodes.slice(0, 50);
+  }
+
   async searchEntities(query, filters = {}) {
     try {
       const results = await entityAPI.searchEntities(query, filters);
-      return results.map(entity => this.processEntity(entity));
+      return results.map((entity) => this.processEntity(entity));
     } catch (error) {
+      if (this.isNetworkError(error)) {
+        console.warn('[GraphService] Backend unavailable, searching locally');
+        return this.searchEntitiesLocal(query, filters);
+      }
+
       console.error('[GraphService] Error searching entities:', error);
       throw error;
     }

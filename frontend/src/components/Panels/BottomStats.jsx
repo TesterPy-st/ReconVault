@@ -1,16 +1,19 @@
 // Bottom Stats Component - metrics dashboard
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useGraph } from '../../hooks/useGraph';
 
 const BottomStats = ({
   isCollapsed = false,
   onToggleCollapse,
   className = '',
   showPerformanceMetrics = true,
-  refreshInterval = 5000
+  refreshInterval = 5000,
+  nodes = [],
+  edges = [],
+  performance: graphPerformance = {},
+  toast
 }) => {
-  const { performance, graphStats, nodes, edges } = useGraph();
+  const info = toast?.info || (() => {});
   const [stats, setStats] = useState({
     totalNodes: 0,
     totalEdges: 0,
@@ -49,12 +52,12 @@ const BottomStats = ({
   // Update real-time metrics
   useEffect(() => {
     setRealTimeMetrics({
-      fps: performance.fps,
-      renderTime: performance.renderTime,
+      fps: graphPerformance.fps || 0,
+      renderTime: graphPerformance.renderTime || 0,
       memoryUsage: calculateMemoryUsage(),
       networkLatency: Math.floor(Math.random() * 100) + 50 // Mock latency
     });
-  }, [performance]);
+  }, [graphPerformance.fps, graphPerformance.renderTime]);
 
   // Auto-refresh stats
   useEffect(() => {
@@ -85,14 +88,17 @@ const BottomStats = ({
   };
 
   const calculateMemoryUsage = () => {
-    if (performance.memory) {
-      return Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+    const perf = globalThis?.performance;
+
+    if (perf?.memory?.usedJSHeapSize) {
+      return Math.round(perf.memory.usedJSHeapSize / 1024 / 1024);
     }
+
     // Mock memory usage
     return Math.floor(Math.random() * 50) + 20;
   };
 
-  const formatMetric = (value, type = 'number') => {
+  const formatMetric = useCallback((value, type = 'number') => {
     switch (type) {
       case 'percentage':
         return `${(value * 100).toFixed(1)}%`;
@@ -103,7 +109,7 @@ const BottomStats = ({
       default:
         return value.toLocaleString();
     }
-  };
+  }, []);
 
   const statsItems = [
     {
@@ -222,6 +228,26 @@ const BottomStats = ({
     collapsed: { opacity: 0, y: 10 }
   };
 
+  const handleStatClick = useCallback((item) => {
+    const formattedValue = formatMetric(item.value, item.type);
+
+    info(
+      <div className="space-y-1">
+        <div className="font-mono font-bold">
+          {item.icon} {item.label}
+        </div>
+        <div className="font-mono">
+          Value: <span className="font-bold">{formattedValue}</span>
+        </div>
+        <div className="text-xs opacity-80">
+          Trend: {item.trendUp ? '↗️' : '↘️'} {item.trend}
+          {stats.lastUpdate ? ` • Updated ${stats.lastUpdate.toLocaleTimeString()}` : ''}
+        </div>
+      </div>,
+      { duration: 6000 }
+    );
+  }, [formatMetric, info, stats.lastUpdate]);
+
   return (
     <motion.div
       variants={containerVariants}
@@ -283,12 +309,17 @@ const BottomStats = ({
           {/* Stats Grid */}
           <div className="grid grid-cols-8 gap-4 flex-1">
             {statsItems.map((item) => (
-              <motion.div
+              <motion.button
                 key={item.id}
+                type="button"
                 whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleStatClick(item)}
                 className="
-                  bg-cyber-light bg-opacity-50 rounded-lg p-3
+                  bg-cyber-light bg-opacity-50 rounded-lg p-3 text-left
                   border border-cyber-border hover:border-neon-green
+                  focus:outline-none focus:ring-2 focus:ring-neon-green focus:ring-opacity-40
+                  active:scale-95
                   transition-all duration-200 cursor-pointer
                 "
               >
@@ -310,7 +341,7 @@ const BottomStats = ({
                 <div className="text-xs text-cyber-gray font-mono">
                   {item.label}
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
 

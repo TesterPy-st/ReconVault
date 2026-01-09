@@ -367,7 +367,7 @@ const GraphCanvas = ({
       )}
 
       {/* Performance Info */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <div className="absolute bottom-4 left-4 bg-cyber-dark bg-opacity-90 p-2 rounded text-xs font-mono text-cyber-gray">
           <div>Nodes: {filteredData.nodes.length}</div>
           <div>Edges: {filteredData.links.length}</div>

@@ -164,7 +164,7 @@ const Toast = ({
 };
 
 // Toast Container Component
-const ToastContainer = ({ toasts, position = 'top-right' }) => {
+const ToastContainer = ({ toasts, onClose, position = 'top-right' }) => {
   const positionClasses = {
     'top-right': 'top-4 right-4',
     'top-left': 'top-4 left-4',
@@ -181,7 +181,7 @@ const ToastContainer = ({ toasts, position = 'top-right' }) => {
           <Toast
             key={toast.id}
             {...toast}
-            onClose={toast.onClose}
+            onClose={onClose}
           />
         ))}
       </AnimatePresence>
@@ -252,7 +252,7 @@ export const useToast = () => {
     loading,
     updateToast,
     ToastContainer: ({ position }) => (
-      <ToastContainer toasts={toasts} position={position} />
+      <ToastContainer toasts={toasts} onClose={removeToast} position={position} />
     )
   };
 };
