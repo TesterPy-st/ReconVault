@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from enum import Enum
 
 from app.database import get_db
-from app.models.intelligence import Entity, Relationship, Target
+from app.models import Entity, Relationship, Target
 from app.services.report_service import ReportService
 
 # Configure logging

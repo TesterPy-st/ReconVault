@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from app.models.intelligence import Entity, Relationship, Target
+from app.models import Entity, Relationship, Target
 from app.intelligence_graph.graph_builder import GraphBuilder
 
 # Configure logging
