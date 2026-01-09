@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from app.automation.celery_tasks import celery_app
 from app.collectors import (CollectorConfig, CollectorFactory,
                             DarkWebCollector, DataType, DomainCollector,
                             EmailCollector, GeoCollector, IPCollector,
