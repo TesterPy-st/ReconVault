@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useGraph } from '../../hooks/useGraph';
+import { useToast } from '../Common/Toast';
 
 const BottomStats = ({
   isCollapsed = false,
@@ -11,6 +12,7 @@ const BottomStats = ({
   refreshInterval = 5000
 }) => {
   const { performance, graphStats, nodes, edges } = useGraph();
+  const { success } = useToast();
   const [stats, setStats] = useState({
     totalNodes: 0,
     totalEdges: 0,
@@ -22,6 +24,10 @@ const BottomStats = ({
     criticalNodes: 0,
     highRiskNodes: 0
   });
+
+  const handleStatClick = (item) => {
+    success(`${item.label} metric: ${formatMetric(item.value, item.type)}`);
+  };
 
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     fps: 0,
@@ -286,6 +292,7 @@ const BottomStats = ({
               <motion.div
                 key={item.id}
                 whileHover={{ scale: 1.05, y: -2 }}
+                onClick={() => handleStatClick(item)}
                 className="
                   bg-cyber-light bg-opacity-50 rounded-lg p-3
                   border border-cyber-border hover:border-neon-green

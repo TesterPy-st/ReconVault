@@ -273,7 +273,7 @@ const TopHeader = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => onMenuAction('export')}
+            onClick={() => onMenuAction('settings')}
             className="
               px-3 py-2 rounded-lg border border-cyber-border
               text-cyber-gray hover:text-neon-green hover:border-neon-green

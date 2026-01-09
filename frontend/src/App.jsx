@@ -408,6 +408,27 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, [sidebarCollapsed, rightSidebarCollapsed, bottomStatsCollapsed]);
 
+  // Backend connection monitoring
+  const [backendConnected, setBackendConnected] = useState(true);
+
+  useEffect(() => {
+    const checkBackendConnection = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/health');
+        if (!response.ok) throw new Error('Backend not responding');
+        setBackendConnected(true);
+      } catch (error) {
+        console.warn('Backend connection failed, using mock data');
+        setBackendConnected(false);
+      }
+    };
+
+    checkBackendConnection();
+    const interval = setInterval(checkBackendConnection, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
   // Animation variants
   const layoutVariants = {
     hidden: { opacity: 0 },
@@ -420,7 +441,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-black text-neon-green font-mono overflow-hidden">
+    <div className="min-h-screen bg-cyber-black text-neon-green font-mono overflow-y-auto">
       {/* Background Effects */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-cyber-dark via-cyber-black to-cyber-darker"></div>
@@ -431,6 +452,13 @@ function App() {
           }}
         ></div>
       </div>
+
+      {/* Backend Connection Warning */}
+      {!backendConnected && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-warning-yellow text-cyber-black px-4 py-2 rounded-lg border border-warning-yellow shadow-lg font-mono text-sm">
+          ⚠️ Backend connection failed - using mock data
+        </div>
+      )}
 
       {/* Main Layout */}
       <motion.div
@@ -450,7 +478,7 @@ function App() {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-y-auto">
           {/* Left Sidebar */}
           <LeftSidebar
             isCollapsed={sidebarCollapsed}
